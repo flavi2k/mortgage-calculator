@@ -220,4 +220,173 @@ public class MortgageCalculationTests
 
         Assert.Throws<ArgumentException>(() => _engine.CalculateMonthlyPayment(details));
     }
+
+    [Fact]
+    public void CalculatePortfolio_SinglePeriod_ReturnsCorrectSchedule()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 200000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 25,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>()
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        Assert.Equal(300, result.CombinedSchedule.Count);
+        Assert.True(result.TotalInterestPaid > 0);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_TwoPeriods_SequentialBalanceTransfer()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 200000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 2,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>()
+            },
+            new MortgagePeriod
+            {
+                LoanAmount = 180000,
+                AnnualInterestRate = 4.5m,
+                LoanTermYears = 23,
+                StartDate = new DateTime(2026, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>()
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.PeriodResults.Count);
+        Assert.True(result.CombinedSchedule.Count > 0);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_WithExtraPayments_VariablePerMonth()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 200000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 25,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>
+                {
+                    new ExtraPaymentEntry { MonthNumber = 1, Amount = 300 },
+                    new ExtraPaymentEntry { MonthNumber = 5, Amount = 1400 }
+                }
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        var month1 = result.CombinedSchedule.FirstOrDefault(p => p.PaymentNumber == 1);
+        Assert.NotNull(month1);
+        Assert.Equal(300, month1.ExtraPayment);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_Calculates10PercentCap()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 200000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 25,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>()
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        var firstPayment = result.CombinedSchedule.FirstOrDefault();
+        Assert.NotNull(firstPayment);
+        decimal expectedMaxCap = (200000m * 0.10m / 12m) + firstPayment.TotalPayment;
+        Assert.Equal(expectedMaxCap, firstPayment.MaxCapPayment, 2);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_ExtraPaymentExceedsCap_IsOverCap()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 100000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 25,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>
+                {
+                    new ExtraPaymentEntry { MonthNumber = 1, Amount = 2000 }
+                }
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        var month1 = result.CombinedSchedule.FirstOrDefault(p => p.PaymentNumber == 1);
+        Assert.NotNull(month1);
+        Assert.True(month1.IsOverCap);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_ExtraPaymentUnderCap_NotOverCap()
+    {
+        var periods = new List<MortgagePeriod>
+        {
+            new MortgagePeriod
+            {
+                LoanAmount = 100000,
+                AnnualInterestRate = 5.0m,
+                LoanTermYears = 25,
+                StartDate = new DateTime(2024, 1, 1),
+                EarlyRepaymentCapPercent = 10m,
+                ExtraPayments = new List<ExtraPaymentEntry>
+                {
+                    new ExtraPaymentEntry { MonthNumber = 1, Amount = 100 }
+                }
+            }
+        };
+
+        var result = _engine.CalculatePortfolio(periods);
+
+        Assert.NotNull(result);
+        var month1 = result.CombinedSchedule.FirstOrDefault(p => p.PaymentNumber == 1);
+        Assert.NotNull(month1);
+        Assert.False(month1.IsOverCap);
+    }
+
+    [Fact]
+    public void CalculatePortfolio_EmptyPeriods_ThrowsException()
+    {
+        var periods = new List<MortgagePeriod>();
+        Assert.Throws<ArgumentException>(() => _engine.CalculatePortfolio(periods));
+    }
 }

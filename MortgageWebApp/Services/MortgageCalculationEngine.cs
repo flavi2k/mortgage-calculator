@@ -16,14 +16,36 @@ namespace MortgageWebApp.Services
             decimal monthlyInterestRate = mortgageDetails.AnnualInterestRate / 100 / 12;
             int numberOfPayments = mortgageDetails.LoanTermYears * 12;
 
-            // Handle case where interest rate is 0
             if (monthlyInterestRate == 0)
             {
                 return mortgageDetails.LoanAmount / numberOfPayments;
             }
 
-            // Standard mortgage formula: M = P * [r(1+r)^n] / [(1+r)^n - 1]
             decimal payment = mortgageDetails.LoanAmount * 
+                             (monthlyInterestRate * (decimal)Math.Pow((double)(1 + monthlyInterestRate), numberOfPayments)) / 
+                             ((decimal)Math.Pow((double)(1 + monthlyInterestRate), numberOfPayments) - 1);
+
+            return Math.Round(payment, 2);
+        }
+
+        public decimal CalculateMonthlyPaymentForPeriod(decimal loanAmount, decimal annualInterestRate, int termYears)
+        {
+            if (loanAmount <= 0)
+                throw new ArgumentException("Loan amount must be greater than zero");
+            if (annualInterestRate < 0)
+                throw new ArgumentException("Interest rate cannot be negative");
+            if (termYears <= 0)
+                throw new ArgumentException("Loan term must be greater than zero");
+
+            decimal monthlyInterestRate = annualInterestRate / 100 / 12;
+            int numberOfPayments = termYears * 12;
+
+            if (monthlyInterestRate == 0)
+            {
+                return loanAmount / numberOfPayments;
+            }
+
+            decimal payment = loanAmount * 
                              (monthlyInterestRate * (decimal)Math.Pow((double)(1 + monthlyInterestRate), numberOfPayments)) / 
                              ((decimal)Math.Pow((double)(1 + monthlyInterestRate), numberOfPayments) - 1);
 
@@ -201,6 +223,159 @@ namespace MortgageWebApp.Services
                 TotalInterestSaved = Math.Round(totalInterestSaved, 2),
                 TotalInterestPaid = Math.Round(totalInterestPaid, 2)
             };
+        }
+
+        public PortfolioCalculationResult CalculatePortfolio(List<MortgagePeriod> periods)
+        {
+            if (periods == null || periods.Count == 0)
+                throw new ArgumentException("At least one mortgage period is required");
+
+            var result = new PortfolioCalculationResult();
+            var combinedSchedule = new List<PaymentSchedule>();
+            decimal balance = 0;
+            int globalPaymentNumber = 1;
+
+            for (int periodIndex = 0; periodIndex < periods.Count; periodIndex++)
+            {
+                var period = periods[periodIndex];
+                var periodSchedule = GenerateAmortizationScheduleWithExtraPaymentsAndCap(
+                    period.LoanAmount,
+                    period.AnnualInterestRate,
+                    period.LoanTermYears,
+                    period.StartDate,
+                    period.EarlyRepaymentCapPercent,
+                    period.ExtraPayments,
+                    balance,
+                    globalPaymentNumber);
+
+                balance = 0;
+                foreach (var payment in periodSchedule)
+                {
+                    if (payment.RemainingBalance <= 0)
+                    {
+                        balance = 0;
+                        break;
+                    }
+                    balance = payment.RemainingBalance;
+                }
+
+                var periodResult = new MortgagePeriodResult
+                {
+                    PeriodIndex = periodIndex,
+                    StartDate = period.StartDate,
+                    OriginalLoanAmount = period.LoanAmount,
+                    MonthlyPayment = CalculateMonthlyPaymentForPeriod(period.LoanAmount, period.AnnualInterestRate, period.LoanTermYears),
+                    MonthCount = periodSchedule.Count,
+                    TotalInterestPaid = periodSchedule.Sum(p => p.InterestPayment),
+                    FinalBalance = balance
+                };
+                
+                if (periodSchedule.Any())
+                {
+                    periodResult.EndDate = periodSchedule.Last().PaymentDate;
+                }
+
+                result.PeriodResults.Add(periodResult);
+                combinedSchedule.AddRange(periodSchedule);
+                globalPaymentNumber += periodSchedule.Count;
+            }
+
+            result.CombinedSchedule = combinedSchedule;
+            result.TotalInterestPaid = combinedSchedule.Sum(p => p.InterestPayment);
+            result.TotalAmountPaid = combinedSchedule.Sum(p => p.TotalPayment);
+            result.TotalMonths = combinedSchedule.Count;
+
+            if (periods.Count > 0)
+            {
+                var baselineDetails = new MortgageDetails
+                {
+                    LoanAmount = periods[0].LoanAmount,
+                    AnnualInterestRate = periods[0].AnnualInterestRate,
+                    LoanTermYears = periods.Sum(p => p.LoanTermYears)
+                };
+                var baselineSchedule = GenerateAmortizationSchedule(baselineDetails);
+                var baselineInterest = baselineSchedule.Sum(p => p.InterestPayment);
+                result.TotalInterestSaved = baselineInterest - result.TotalInterestPaid;
+                result.MonthsSaved = baselineSchedule.Count - result.TotalMonths;
+            }
+
+            return result;
+        }
+
+        private List<PaymentSchedule> GenerateAmortizationScheduleWithExtraPaymentsAndCap(
+            decimal loanAmount,
+            decimal annualInterestRate,
+            int termYears,
+            DateTime startDate,
+            decimal earlyRepaymentCapPercent,
+            List<ExtraPaymentEntry> extraPayments,
+            decimal carryOverBalance,
+            int startPaymentNumber)
+        {
+            var schedule = new List<PaymentSchedule>();
+            decimal balance = carryOverBalance > 0 ? carryOverBalance : loanAmount;
+            decimal monthlyInterestRate = annualInterestRate / 100 / 12;
+            int numberOfPayments = termYears * 12;
+            decimal monthlyPayment = CalculateMonthlyPaymentForPeriod(loanAmount, annualInterestRate, termYears);
+            
+            decimal maxAnnualRepayment = loanAmount * (earlyRepaymentCapPercent / 100);
+            decimal maxMonthlyCap = maxAnnualRepayment / 12;
+            
+            DateTime paymentDate = startDate;
+            int currentYear = startDate.Year;
+            decimal yearTotalPaid = 0;
+
+            var extraPaymentMap = extraPayments.ToDictionary(e => e.MonthNumber, e => e.Amount);
+
+            for (int i = 1; i <= numberOfPayments; i++)
+            {
+                if (balance <= 0) break;
+
+                int paymentYear = paymentDate.Year;
+                if (paymentYear != currentYear)
+                {
+                    yearTotalPaid = 0;
+                    currentYear = paymentYear;
+                }
+
+                decimal interestPayment = balance * monthlyInterestRate;
+                decimal principalPayment = monthlyPayment - interestPayment;
+                
+                decimal extraPayment = extraPaymentMap.ContainsKey(i) ? extraPaymentMap[i] : 0;
+                decimal totalPayment = monthlyPayment + extraPayment;
+                
+                yearTotalPaid += extraPayment;
+                decimal maxCapPayment = maxMonthlyCap + monthlyPayment;
+                bool isOverCap = extraPayment > maxMonthlyCap;
+
+                balance -= principalPayment + extraPayment;
+
+                if (balance < 0)
+                {
+                    totalPayment = monthlyPayment + principalPayment + extraPayment;
+                    balance = 0;
+                }
+
+                int yearNumber = paymentDate.Year - startDate.Year + 1;
+
+                schedule.Add(new PaymentSchedule
+                {
+                    PaymentNumber = startPaymentNumber + i - 1,
+                    PaymentDate = paymentDate,
+                    TotalPayment = totalPayment,
+                    PrincipalPayment = principalPayment + extraPayment,
+                    InterestPayment = interestPayment,
+                    RemainingBalance = balance,
+                    YearNumber = yearNumber,
+                    MaxCapPayment = Math.Round(maxCapPayment, 2),
+                    IsOverCap = isOverCap,
+                    ExtraPayment = extraPayment
+                });
+
+                paymentDate = paymentDate.AddMonths(1);
+            }
+
+            return schedule;
         }
     }
 }

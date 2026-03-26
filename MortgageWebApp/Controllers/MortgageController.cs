@@ -127,5 +127,27 @@ namespace MortgageWebApp.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Calculate portfolio with multiple mortgage periods.
+        /// </summary>
+        [HttpPost("calculate-portfolio")]
+        public ActionResult<PortfolioCalculationResult> CalculatePortfolio([FromBody] List<MortgagePeriod> periods)
+        {
+            if (periods == null || periods.Count == 0)
+            {
+                return BadRequest("At least one mortgage period is required");
+            }
+
+            try
+            {
+                var result = _mortgageCalculationEngine.CalculatePortfolio(periods);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
