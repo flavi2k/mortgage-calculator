@@ -11,5 +11,6 @@ namespace MortgageWebApp.Services
         List<PaymentSchedule> GenerateAmortizationScheduleWithOneTimeExtraPayment(MortgageDetails mortgageDetails, decimal oneTimeExtraPayment, int extraPaymentMonth);
         ExtraPaymentScenario CalculateExtraPaymentScenario(MortgageDetails mortgageDetails);
         PortfolioCalculationResult CalculatePortfolio(List<MortgagePeriod> periods);
+        decimal GetProjectedBalanceAfterFixedPeriod(decimal loanAmount, decimal annualInterestRate, int termYears, int fixedPeriodYears);
     }
 }

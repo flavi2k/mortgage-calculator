@@ -149,5 +149,31 @@ namespace MortgageWebApp.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Get projected balance after fixed period for a mortgage period.
+        /// </summary>
+        [HttpPost("projected-balance")]
+        public ActionResult<decimal> GetProjectedBalance([FromBody] MortgagePeriod period)
+        {
+            if (period == null)
+            {
+                return BadRequest("Mortgage period is required");
+            }
+
+            try
+            {
+                var result = _mortgageCalculationEngine.GetProjectedBalanceAfterFixedPeriod(
+                    period.LoanAmount,
+                    period.AnnualInterestRate,
+                    period.LoanTermYears,
+                    period.FixedPeriodYears);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

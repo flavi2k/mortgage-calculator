@@ -66,7 +66,7 @@ namespace MortgageWebApp.Services
             decimal monthlyInterestRate = mortgageDetails.AnnualInterestRate / 100 / 12;
             int numberOfPayments = mortgageDetails.LoanTermYears * 12;
             decimal monthlyPayment = CalculateMonthlyPayment(mortgageDetails);
-            DateTime paymentDate = DateTime.Now;
+            DateTime paymentDate = mortgageDetails.StartDate.AddMonths(1);
 
             for (int i = 1; i <= numberOfPayments; i++)
             {
@@ -107,7 +107,7 @@ namespace MortgageWebApp.Services
             decimal monthlyInterestRate = mortgageDetails.AnnualInterestRate / 100 / 12;
             int numberOfPayments = mortgageDetails.LoanTermYears * 12;
             decimal monthlyPayment = CalculateMonthlyPayment(mortgageDetails);
-            DateTime paymentDate = DateTime.Now;
+            DateTime paymentDate = mortgageDetails.StartDate.AddMonths(1);
 
             for (int i = 1; i <= numberOfPayments; i++)
             {
@@ -157,7 +157,7 @@ namespace MortgageWebApp.Services
             decimal monthlyInterestRate = mortgageDetails.AnnualInterestRate / 100 / 12;
             int numberOfPayments = mortgageDetails.LoanTermYears * 12;
             decimal monthlyPayment = CalculateMonthlyPayment(mortgageDetails);
-            DateTime paymentDate = DateTime.Now;
+            DateTime paymentDate = mortgageDetails.StartDate.AddMonths(1);
 
             for (int i = 1; i <= numberOfPayments; i++)
             {
@@ -238,6 +238,7 @@ namespace MortgageWebApp.Services
             for (int periodIndex = 0; periodIndex < periods.Count; periodIndex++)
             {
                 var period = periods[periodIndex];
+                
                 var periodSchedule = GenerateAmortizationScheduleWithExtraPaymentsAndCap(
                     period.LoanAmount,
                     period.AnnualInterestRate,
@@ -321,8 +322,8 @@ namespace MortgageWebApp.Services
             decimal maxAnnualRepayment = loanAmount * (earlyRepaymentCapPercent / 100);
             decimal maxMonthlyCap = maxAnnualRepayment / 12;
             
-            DateTime paymentDate = startDate;
-            int currentYear = startDate.Year;
+            DateTime paymentDate = startDate.AddMonths(1);
+            int currentYear = paymentDate.Year;
             decimal yearTotalPaid = 0;
 
             var extraPaymentMap = extraPayments.ToDictionary(e => e.MonthNumber, e => e.Amount);
@@ -376,6 +377,45 @@ namespace MortgageWebApp.Services
             }
 
             return schedule;
+        }
+
+        public decimal GetProjectedBalanceAfterFixedPeriod(decimal loanAmount, decimal annualInterestRate, int termYears, int fixedPeriodYears)
+        {
+            if (fixedPeriodYears <= 0 || fixedPeriodYears > termYears)
+            {
+                return loanAmount;
+            }
+
+            int fixedPeriodMonths = fixedPeriodYears * 12;
+            decimal monthlyInterestRate = annualInterestRate / 100 / 12;
+            int totalMonths = termYears * 12;
+
+            decimal monthlyPayment;
+            if (monthlyInterestRate == 0)
+            {
+                monthlyPayment = loanAmount / totalMonths;
+            }
+            else
+            {
+                monthlyPayment = loanAmount *
+                    (monthlyInterestRate * (decimal)Math.Pow((double)(1 + monthlyInterestRate), totalMonths)) /
+                    ((decimal)Math.Pow((double)(1 + monthlyInterestRate), totalMonths) - 1);
+            }
+
+            decimal balance = loanAmount;
+            for (int i = 0; i < fixedPeriodMonths; i++)
+            {
+                decimal interestPayment = balance * monthlyInterestRate;
+                decimal principalPayment = monthlyPayment - interestPayment;
+                balance -= principalPayment;
+
+                if (balance <= 0)
+                {
+                    return 0;
+                }
+            }
+
+            return Math.Round(balance, 2);
         }
     }
 }

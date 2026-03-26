@@ -421,15 +421,15 @@
         </div>
         
         <div class="tab-buttons">
-            <button class="tab-btn active" onclick="switchTab('single')" id="tabSingle">
+            <button class="tab-btn" onclick="switchTab('single')" id="tabSingle">
                 <i class="fas fa-home"></i> Single Mortgage
             </button>
-            <button class="tab-btn" onclick="switchTab('portfolio')" id="tabPortfolio">
+            <button class="tab-btn active" onclick="switchTab('portfolio')" id="tabPortfolio">
                 <i class="fas fa-building"></i> Portfolio (with Remortgage)
             </button>
         </div>
         
-        <div id="singleTabContent" class="tab-content active">
+        <div id="singleTabContent" class="tab-content">
             <div class="card">
                 <h2 class="section-title">Loan Details</h2>
             <div class="form-grid">
@@ -492,7 +492,7 @@
         </div>
         </div>
         
-        <div id="portfolioTabContent" class="tab-content">
+        <div id="portfolioTabContent" class="tab-content active">
             <div class="card">
                 <h2 class="section-title">Mortgage Portfolio</h2>
                 <p style="color: #666; margin-bottom: 20px;">Add multiple mortgage periods (initial + remortgages) to see the full picture.</p>
@@ -1272,29 +1272,55 @@
         
         let mortgagePeriods = [];
         
-        function addMortgagePeriod() {
+        async function addMortgagePeriod() {
             const periodIndex = mortgagePeriods.length;
-            let startDate = new Date();
-            let loanAmount = 200000;
+            let startDate = new Date(2022, 7, 5); // 05/08/2022
+            let loanAmount = 226800;
+            let loanTerm = 25;
             
             if (periodIndex > 0 && mortgagePeriods[periodIndex - 1]) {
                 const prevPeriod = mortgagePeriods[periodIndex - 1];
                 const prevStart = new Date(prevPeriod.startDate);
-                startDate = new Date(prevStart.getFullYear() + prevPeriod.loanTermYears, prevStart.getMonth(), prevStart.getDate());
-                loanAmount = Math.round(prevPeriod.loanAmount * 0.9);
-            } else if (periodIndex > 0) {
-                startDate.setFullYear(startDate.getFullYear() + 25);
+                const fixedYears = prevPeriod.fixedPeriodYears || 2;
+                startDate = new Date(prevStart.getFullYear() + fixedYears, prevStart.getMonth(), prevStart.getDate());
+                loanTerm = Math.max(5, prevPeriod.loanTermYears - fixedYears);
+                
+                try {
+                    const response = await fetch('http://localhost:5001/api/mortgage/projected-balance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            loanAmount: prevPeriod.loanAmount,
+                            annualInterestRate: prevPeriod.annualInterestRate,
+                            loanTermYears: prevPeriod.loanTermYears,
+                            fixedPeriodYears: fixedYears
+                        })
+                    });
+                    const projectedBalance = await response.json();
+                    console.log('Projected balance:', projectedBalance);
+                    if (projectedBalance !== null && projectedBalance > 0) {
+                        loanAmount = projectedBalance;
+                    }
+                } catch (error) {
+                    console.error('Error getting projected balance:', error);
+                    loanAmount = Math.round(prevPeriod.loanAmount * 0.9);
+                }
             }
             
-            const defaultFixedPeriod = periodIndex === 0 ? 5 : 2;
-            const defaultTerm = periodIndex === 0 ? 25 : 23;
+            const defaultFixedPeriod = periodIndex === 0 ? 2 : 2;
+            const defaultTerm = periodIndex === 0 ? 25 : loanTerm;
+            
+            const year = startDate.getFullYear();
+            const month = String(startDate.getMonth() + 1).padStart(2, '0');
+            const day = String(startDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
             
             mortgagePeriods.push({
                 loanAmount: loanAmount,
-                annualInterestRate: periodIndex > 0 ? 4.5 : 5.0,
+                annualInterestRate: periodIndex > 0 ? 4.5 : 2.75,
                 loanTermYears: defaultTerm,
                 fixedPeriodYears: defaultFixedPeriod,
-                startDate: startDate.toISOString().split('T')[0],
+                startDate: dateStr,
                 earlyRepaymentCapPercent: 10,
                 extraPayments: []
             });
@@ -1335,9 +1361,11 @@
                 const currPeriod = mortgagePeriods[i];
                 const nextPeriod = mortgagePeriods[i + 1];
                 const currStart = new Date(currPeriod.startDate);
+                const fixedYears = currPeriod.fixedPeriodYears || 2;
                 
-                nextPeriod.startDate = new Date(currStart.getFullYear() + currPeriod.loanTermYears, currStart.getMonth(), currStart.getDate()).toISOString().split('T')[0];
+                nextPeriod.startDate = new Date(currStart.getFullYear() + fixedYears, currStart.getMonth(), currStart.getDate()).toISOString().split('T')[0];
                 nextPeriod.loanAmount = Math.round(currPeriod.loanAmount * 0.9);
+                nextPeriod.loanTermYears = Math.max(5, currPeriod.loanTermYears - fixedYears);
             }
             renderPeriods();
         }
