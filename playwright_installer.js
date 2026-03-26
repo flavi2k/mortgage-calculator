@@ -22,9 +22,21 @@ function installPlaywright() {
   }
 }
 
+function runPlaywrightTests() {
+  try {
+    console.log('Running Playwright tests...');
+    execSync('npx playwright test', { stdio: 'inherit' });
+    console.log('Playwright tests completed successfully!');
+  } catch (error) {
+    console.error('Failed to run Playwright tests:', error.message);
+    process.exit(1);
+  }
+}
+
 function main() {
   if (isPlaywrightInstalled()) {
     console.log('Playwright CLI is already installed.');
+    runPlaywrightTests();
   } else {
     installPlaywright();
   }
