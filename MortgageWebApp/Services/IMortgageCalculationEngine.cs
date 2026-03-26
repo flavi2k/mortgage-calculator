@@ -1,0 +1,13 @@
+using MortgageWebApp.Models;
+
+namespace MortgageWebApp.Services
+{
+    public interface IMortgageCalculationEngine
+    {
+        decimal CalculateMonthlyPayment(MortgageDetails mortgageDetails);
+        List<PaymentSchedule> GenerateAmortizationSchedule(MortgageDetails mortgageDetails);
+        List<PaymentSchedule> GenerateAmortizationScheduleWithExtraPayments(MortgageDetails mortgageDetails, decimal extraMonthlyPayment);
+        List<PaymentSchedule> GenerateAmortizationScheduleWithOneTimeExtraPayment(MortgageDetails mortgageDetails, decimal oneTimeExtraPayment, int extraPaymentMonth);
+        ExtraPaymentScenario CalculateExtraPaymentScenario(MortgageDetails mortgageDetails);
+    }
+}
