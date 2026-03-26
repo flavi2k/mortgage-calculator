@@ -13,25 +13,18 @@ const { chromium } = require('playwright');
   await loanAmount.selectText();
   await loanAmount.type('215000');
   
-  const oneTime = await page.locator('#oneTimePayment');
-  await oneTime.click();
-  await oneTime.selectText();
-  await oneTime.type('10000');
-  
   await page.click('#calculateBtn');
-  
   await page.waitForTimeout(3000);
   
-  const loanVal = await page.locator('#loanAmount').inputValue();
-  const oneTimeVal = await page.locator('#oneTimePayment').inputValue();
-  console.log('Loan amount:', loanVal);
-  console.log('One-time:', oneTimeVal);
+  const ltvCard = await page.locator('#ltvCard').isVisible();
+  const financialAdvisor = await page.locator('#financialAdvisor').count();
   
-  const monthlyPayment = await page.locator('#monthlyPayment').textContent();
-  console.log('Monthly payment:', monthlyPayment);
+  console.log('LTV Card visible:', ltvCard);
+  console.log('Financial Advisor exists:', financialAdvisor > 0);
   
-  const savingsTable = await page.locator('#savingsTableBody').innerHTML();
-  console.log('Savings table:\n', savingsTable);
+  if (ltvCard && financialAdvisor > 0) {
+    console.log('✓ Financial Advisor working!');
+  }
   
   await browser.close();
 })();

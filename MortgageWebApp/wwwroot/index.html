@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mortgage Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -277,6 +278,11 @@
                     <label for="extraPaymentMonth">Apply One-Time Payment In Month</label>
                     <input type="number" id="extraPaymentMonth" placeholder="Month number" value="12" min="1">
                 </div>
+                
+                <div class="form-group">
+                    <label for="propertyValue">Property Value (£)</label>
+                    <input type="text" id="propertyValue" placeholder="Enter property value in £" value="300,000" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
+                </div>
             </div>
             
             <button id="calculateBtn" class="btn">
@@ -307,6 +313,18 @@
                 <div class="result-card">
                     <h3>Term Reduction</h3>
                     <p id="termReduction" class="result-value">---</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="section-title">Payment Breakdown</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <canvas id="paymentPieChart"></canvas>
+                    </div>
+                    <div>
+                        <canvas id="paymentBarChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -348,6 +366,29 @@
                 <tbody id="savingsTableBody">
                 </tbody>
             </table>
+        </div>
+        
+        <div class="card" id="ltvCard" style="display: none;">
+            <h2 class="section-title">LTV & Remortgage Advisor</h2>
+            <div class="results-grid">
+                <div class="result-card">
+                    <h3>Current LTV</h3>
+                    <p id="ltvPercentage">---</p>
+                </div>
+                <div class="result-card">
+                    <h3>Property Value</h3>
+                    <p id="propertyValueDisplay">---</p>
+                </div>
+                <div class="result-card">
+                    <h3>Remaining Balance</h3>
+                    <p id="remainingBalance">---</p>
+                </div>
+                <div class="result-card">
+                    <h3>Equity</h3>
+                    <p id="equityAmount">---</p>
+                </div>
+            </div>
+            <div id="remortgageAdvisor" style="margin-top: 20px;"></div>
         </div>
     </div>
 
@@ -391,6 +432,7 @@
             const extraPayment = parseFormattedNumber(document.getElementById('extraPayment').value);
             const oneTimePayment = parseFormattedNumber(document.getElementById('oneTimePayment').value);
             const extraPaymentMonth = parseInt(document.getElementById('extraPaymentMonth').value) || 12;
+            const propertyValue = parseFormattedNumber(document.getElementById('propertyValue').value) || loanAmount;
             
             if (isNaN(loanAmount) || isNaN(interestRate) || isNaN(loanTerm)) {
                 alert('Please enter valid numbers for all required fields');
@@ -490,7 +532,7 @@
                 document.getElementById('totalPayment').textContent = formatGBP(loanAmount + extraData.totalInterestPaid);
                 document.getElementById('termReduction').textContent = extraData.monthsSaved > 0 ? extraData.monthsSaved.toFixed(1) + ' months' : '-';
                 
-                updateSchedule(loanAmount, interestRate, loanTerm, extraPayment);
+                updateSchedule(loanAmount, interestRate, loanTerm, extraPayment, propertyValue);
                 
                 renderSavingsTable(loanAmount);
                 
@@ -502,7 +544,7 @@
             }
         }
         
-        async function updateSchedule(loanAmount, interestRate, loanTerm, extraPayment) {
+        async function updateSchedule(loanAmount, interestRate, loanTerm, extraPayment, propertyValue) {
             try {
                 const response = await fetch('http://localhost:5001/api/mortgage/amortization-schedule-extra', {
                     method: 'POST',
@@ -519,6 +561,8 @@
                 currentPage = 1;
                 renderSchedule();
                 renderPagination();
+                renderCharts(loanAmount, fullSchedule);
+                renderLTV(loanAmount, propertyValue, fullSchedule);
                 
             } catch (error) {
                 console.error('Error updating schedule:', error);
@@ -632,6 +676,258 @@
             
             tableBody.innerHTML = rows;
             savingsCard.style.display = 'block';
+        }
+        
+        let pieChart = null;
+        let barChart = null;
+        
+        function renderCharts(loanAmount, schedule) {
+            const totalPrincipal = schedule.reduce((sum, p) => sum + p.principalPayment, 0);
+            const totalInterest = schedule.reduce((sum, p) => sum + p.interestPayment, 0);
+            
+            // Pie chart - Principal vs Interest
+            const pieCtx = document.getElementById('paymentPieChart').getContext('2d');
+            if (pieChart) pieChart.destroy();
+            pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Principal', 'Interest'],
+                    datasets: [{
+                        data: [totalPrincipal, totalInterest],
+                        backgroundColor: ['#4a90d9', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Total Payment Breakdown'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Bar chart - Annual principal vs interest
+            const yearlyData = {};
+            schedule.forEach(payment => {
+                const year = new Date(payment.paymentDate).getFullYear();
+                if (!yearlyData[year]) {
+                    yearlyData[year] = { principal: 0, interest: 0 };
+                }
+                yearlyData[year].principal += payment.principalPayment;
+                yearlyData[year].interest += payment.interestPayment;
+            });
+            
+            const years = Object.keys(yearlyData);
+            const principalData = years.map(y => yearlyData[y].principal);
+            const interestData = years.map(y => yearlyData[y].interest);
+            
+            const barCtx = document.getElementById('paymentBarChart').getContext('2d');
+            if (barChart) barChart.destroy();
+            barChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { label: 'Principal', data: principalData, backgroundColor: '#4a90d9' },
+                        { label: 'Interest', data: interestData, backgroundColor: '#e74c3c' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Annual Principal vs Interest'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, ticks: { callback: v => '£' + v.toLocaleString() } }
+                    }
+                }
+            });
+        }
+        
+        function renderLTV(loanAmount, propertyValue, schedule) {
+            const ltvCard = document.getElementById('ltvCard');
+            const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+            
+            const currentBalance = schedule.length > 0 && schedule[0] ? schedule[0].remainingBalance : loanAmount;
+            const ltv = (currentBalance / propertyValue) * 100;
+            const equity = propertyValue - currentBalance;
+            
+            document.getElementById('ltvPercentage').textContent = ltv.toFixed(2) + '%';
+            document.getElementById('propertyValueDisplay').textContent = formatGBP(propertyValue);
+            document.getElementById('remainingBalance').textContent = formatGBP(currentBalance);
+            document.getElementById('equityAmount').textContent = formatGBP(equity);
+            
+            // Get other inputs needed for financial advisor
+            const interestRate = parseFloat(document.getElementById('interestRate').value);
+            const loanTerm = parseFloat(document.getElementById('loanTerm').value);
+            const extraPayment = parseFormattedNumber(document.getElementById('extraPayment').value);
+            const oneTimePayment = parseFormattedNumber(document.getElementById('oneTimePayment').value);
+            
+            let advisorHTML = '';
+            
+            if (ltv > 75) {
+                advisorHTML += `<div class="message" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107;">
+                    <strong><i class="fas fa-exclamation-triangle"></i> High LTV Warning:</strong> Your LTV is above 75%. Consider remortgaging to get better rates when you reach 75% LTV.
+                </div>`;
+            }
+            
+            if (ltv <= 60) {
+                advisorHTML += `<div class="message" style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+                    <strong><i class="fas fa-check-circle"></i> Great LTV!</strong> Your LTV is excellent (under 60%). You should qualify for the best mortgage rates.
+                </div>`;
+            }
+            
+            if (ltv > 60 && ltv <= 75) {
+                advisorHTML += `<div class="message" style="background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb;">
+                    <strong><i class="fas fa-info-circle"></i> Moderate LTV:</strong> Your LTV is in a good range. Keep making extra payments to reach 60% LTV for better rates.
+                </div>`;
+            }
+            
+            if (extraPayment > 0 || oneTimePayment > 0) {
+                const monthsTo60 = Math.ceil(Math.log(loanAmount / propertyValue / 0.6) / Math.log(1 + interestRate / 100 / 12));
+                if (monthsTo60 > 0 && ltv > 60) {
+                    advisorHTML += `<div class="message" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; margin-top: 10px;">
+                        <strong><i class="fas fa-clock"></i> LTV Goal:</strong> With your current extra payments, you'll reach 60% LTV in approximately ${monthsTo60} months.
+                    </div>`;
+                }
+            }
+            
+            document.getElementById('remortgageAdvisor').innerHTML = advisorHTML;
+            ltvCard.style.display = 'block';
+            
+            renderFinancialAdvisor(loanAmount, interestRate, loanTerm, extraPayment, oneTimePayment, propertyValue, fullSchedule);
+        }
+        
+        function renderFinancialAdvisor(loanAmount, interestRate, loanTerm, extraPayment, oneTimePayment, propertyValue, schedule) {
+            const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+            const currentBalance = schedule.length > 0 ? schedule[0].remainingBalance : loanAmount;
+            const ltv = (currentBalance / propertyValue) * 100;
+            const monthlyPayment = schedule.length > 0 ? schedule[0].totalPayment : 0;
+            const totalInterest = schedule.reduce((sum, p) => sum + p.interestPayment, 0);
+            
+            let advisorHTML = '<div class="card" style="margin-top: 20px; background: #f8f9fa;"><h3 class="section-title"><i class="fas fa-user-tie"></i> Financial Advisor Recommendations</h3>';
+            
+            // Strategy comparison
+            const monthlySavings = extraPayment * (interestRate / 100 / 12);
+            const yearlySavings = monthlySavings * 12;
+            
+            advisorHTML += '<div style="margin-bottom: 20px;">';
+            advisorHTML += '<h4 style="color: #333; margin-bottom: 12px;">Payment Strategy Analysis</h4>';
+            
+            // Calculate different scenarios
+            const standardInterest = totalInterest;
+            
+            // Extra payment scenario
+            const extraMonthlyInterest = fullSchedule.reduce((sum, p) => sum + p.interestPayment, 0);
+            const interestSaved = standardInterest - extraMonthlyInterest;
+            const monthsSaved = (loanTerm * 12) - fullSchedule.length;
+            
+            if (extraPayment > 0) {
+                advisorHTML += `<div class="message" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6cb; margin-bottom: 10px;">
+                    <strong><i class="fas fa-arrow-up"></i> Your Extra Payment Strategy:</strong><br>
+                    By paying ${formatGBP(extraPayment)} extra/month:<br>
+                    • Save ${formatGBP(interestSaved)} in interest<br>
+                    • Pay off ${monthsSaved > 0 ? monthsSaved + ' months' : 'earlier'}
+                </div>`;
+            }
+            
+            // One-time payment analysis
+            if (oneTimePayment > 0) {
+                advisorHTML += `<div class="message" style="background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb; margin-bottom: 10px;">
+                    <strong><i class="fas fa-bolt"></i> One-Time Payment Impact:</strong><br>
+                    A ${formatGBP(oneTimePayment)} lump sum reduces your balance significantly.<br>
+                    Consider making this an annual tradition for maximum benefit.
+                </div>`;
+            }
+            
+            // LTV-based recommendation
+            if (ltv > 70) {
+                advisorHTML += `<div class="message" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107; margin-bottom: 10px;">
+                    <strong><i class="fas fa-bullseye"></i> Priority: Reach 70% LTV</strong><br>
+                    Focus on extra payments to reach 70% LTV. This opens up better rate options.<br>
+                    Target: ${formatGBP(propertyValue * 0.7 - currentBalance)} more to reach 70% LTV.
+                </div>`;
+            } else if (ltv > 60) {
+                advisorHTML += `<div class="message" style="background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb; margin-bottom: 10px;">
+                    <strong><i class="fas fa-chart-line"></i> Priority: Reach 60% LTV</strong><br>
+                    You're in a good position. Consider increasing extra payments to reach 60% LTV.<br>
+                    This will qualify you for the best mortgage rates in the market.
+                </div>`;
+            } else {
+                advisorHTML += `<div class="message" style="background: #d4edda; color: #155724; border: 1px solid #c8e6cb; margin-bottom: 10px;">
+                    <strong><i class="fas fa-star"></i> Excellent Position!</strong><br>
+                    You have excellent equity (under 60% LTV). You should shop for the best rates.<br>
+                    Consider remortgaging to secure a better deal.
+                </div>`;
+            }
+            
+            // Interest rate comparison
+            const marketRate = 4.5; // Typical good rate
+            if (interestRate > marketRate) {
+                const difference = interestRate - marketRate;
+                const potentialSavings = (difference / 100) * loanAmount * (loanTerm / 3);
+                advisorHTML += `<div class="message" style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; margin-bottom: 10px;">
+                    <strong><i class="fas fa-exclamation-circle"></i> Rate Check Needed</strong><br>
+                    Your rate (${interestRate}%) is above current market rates (~${marketRate}%).<br>
+                    You could save up to ${formatGBP(potentialSavings)} by remortgaging.
+                </div>`;
+            }
+            
+            // Risk assessment
+            advisorHTML += '<h4 style="color: #333; margin: 20px 0 12px 0;">Risk Assessment</h4>';
+            
+            const monthlyIncome = monthlyPayment * 4; // Assuming payment is 25% of income
+            const stressTestRate = interestRate + 2;
+            
+            if (stressTestRate > 7) {
+                advisorHTML += `<div class="message" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107;">
+                    <strong><i class="fas fa-exclamation-triangle"></i> High Rate Stress Risk</strong><br>
+                    If rates rise by 2%, your payment would increase significantly.<br>
+                    Consider locking in your current rate or paying down more principal.
+                </div>`;
+            } else {
+                advisorHTML += `<div class="message" style="background: #d4edda; color: #155724; border: 1px solid #c8e6cb;">
+                    <strong><i class="fas fa-shield-alt"></i> Low Rate Stress Risk</strong><br>
+                    Your payment is manageable even if rates rise moderately.<br>
+                    You have good breathing room in your budget.
+                </div>`;
+            }
+            
+            // Optimal extra payment recommendation
+            const optimalExtra = Math.min(monthlyPayment * 0.2, 500);
+            if (extraPayment < optimalExtra && ltv > 50) {
+                advisorHTML += `<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <strong><i class="fas fa-lightbulb"></i> Recommendation:</strong> Consider increasing your extra payment to 
+                    ${formatGBP(optimalExtra)}/month. This is a sustainable amount (20% of your required payment) 
+                    and will significantly reduce your total interest.
+                </div>`;
+            }
+            
+            advisorHTML += '</div>';
+            
+            // Add to page
+            const existingAdvisor = document.getElementById('financialAdvisor');
+            if (existingAdvisor) {
+                existingAdvisor.innerHTML = advisorHTML;
+            } else {
+                const ltvCard = document.getElementById('ltvCard');
+                const newDiv = document.createElement('div');
+                newDiv.id = 'financialAdvisor';
+                newDiv.innerHTML = advisorHTML;
+                ltvCard.appendChild(newDiv);
+            }
         }
     </script>
 </body>
