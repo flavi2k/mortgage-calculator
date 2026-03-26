@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseWebRoot("wwwroot");
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -18,16 +20,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Serve static files
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
 app.MapControllers();
-
-// Map the root to serve the index.html file
-app.MapGet("/", () => Results.File("index.html", "text/html"));
 
 app.Run();

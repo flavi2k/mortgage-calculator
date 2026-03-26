@@ -250,7 +250,7 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label for="loanAmount">Loan Amount (£)</label>
-                    <input type="number" id="loanAmount" placeholder="Enter loan amount in £" value="215000">
+                    <input type="text" id="loanAmount" placeholder="Enter loan amount in £" value="215,000" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
                 </div>
                 
                 <div class="form-group">
@@ -265,7 +265,17 @@
                 
                 <div class="form-group">
                     <label for="extraPayment">Monthly Extra Payment (£)</label>
-                    <input type="number" id="extraPayment" placeholder="Enter extra payment amount in £" value="0">
+                    <input type="text" id="extraPayment" placeholder="Enter extra payment amount in £" value="0" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
+                </div>
+                
+                <div class="form-group">
+                    <label for="oneTimePayment">One-Time Extra Payment (£)</label>
+                    <input type="text" id="oneTimePayment" placeholder="Enter one-time payment in £" value="0" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
+                </div>
+                
+                <div class="form-group">
+                    <label for="extraPaymentMonth">Apply One-Time Payment In Month</label>
+                    <input type="number" id="extraPaymentMonth" placeholder="Month number" value="12" min="1">
                 </div>
             </div>
             
@@ -322,6 +332,23 @@
             </table>
             <div id="paginationContainer" class="pagination"></div>
         </div>
+        
+        <div class="card" id="savingsCard" style="display: none;">
+            <h2 class="section-title">Payment Comparison & Savings</h2>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Monthly Payment</th>
+                        <th>Total Interest</th>
+                        <th>Total Payment</th>
+                        <th>Time to Pay Off</th>
+                    </tr>
+                </thead>
+                <tbody id="savingsTableBody">
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -334,12 +361,36 @@
         let currentPage = 1;
         const itemsPerPage = 12;
         let fullSchedule = [];
+        let baseScenario = {};
+        let extraScenario = {};
+        let oneTimeScenario = {};
+        
+        function formatCurrency(input) {
+            const value = parseFloat(input.value.replace(/,/g, ''));
+            if (!isNaN(value)) {
+                input.value = value.toLocaleString('en-GB');
+            }
+        }
+        
+        function unformatCurrency(input) {
+            input.value = input.value.replace(/,/g, '');
+        }
+        
+        function parseFormattedNumber(value) {
+            if (typeof value === 'string') {
+                const cleaned = value.replace(/[^0-9.-]/g, '');
+                return parseFloat(cleaned) || 0;
+            }
+            return value || 0;
+        }
         
         async function calculateMortgage() {
-            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const loanAmount = parseFormattedNumber(document.getElementById('loanAmount').value);
             const interestRate = parseFloat(document.getElementById('interestRate').value);
             const loanTerm = parseFloat(document.getElementById('loanTerm').value);
-            const extraPayment = parseFloat(document.getElementById('extraPayment').value);
+            const extraPayment = parseFormattedNumber(document.getElementById('extraPayment').value);
+            const oneTimePayment = parseFormattedNumber(document.getElementById('oneTimePayment').value);
+            const extraPaymentMonth = parseInt(document.getElementById('extraPaymentMonth').value) || 12;
             
             if (isNaN(loanAmount) || isNaN(interestRate) || isNaN(loanTerm)) {
                 alert('Please enter valid numbers for all required fields');
@@ -350,7 +401,7 @@
             resultsContainer.innerHTML = '<div class="message loading"><i class="fas fa-spinner fa-spin"></i> Calculating...</div>';
             
             try {
-                const baseResponse = await fetch('http://localhost:5000/api/mortgage/calculate-monthly-payment', {
+                const baseResponse = await fetch('http://localhost:5001/api/mortgage/calculate-monthly-payment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -362,7 +413,7 @@
                 
                 const baseData = await baseResponse.json();
                 
-                const extraResponse = await fetch('http://localhost:5000/api/mortgage/extra-payment-scenario', {
+                const extraResponse = await fetch('http://localhost:5001/api/mortgage/extra-payment-scenario', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -375,7 +426,64 @@
                 
                 const extraData = await extraResponse.json();
                 
+                baseScenario = {
+                    monthlyPayment: baseData,
+                    totalInterest: extraData.totalInterestPaid,
+                    totalPayment: loanAmount + extraData.totalInterestPaid,
+                    termMonths: loanTerm * 12
+                };
+                
+                extraScenario = {
+                    monthlyPayment: baseData + extraPayment,
+                    totalInterest: extraData.totalInterestPaid,
+                    totalPayment: loanAmount + extraData.totalInterestPaid,
+                    termMonths: extraData.newTermMonths
+                };
+                
+                let oneTimeData = null;
+                if (oneTimePayment > 0) {
+                    const oneTimeResponse = await fetch('http://localhost:5001/api/mortgage/amortization-schedule-one-time', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            loanAmount: loanAmount,
+                            annualInterestRate: interestRate,
+                            loanTermYears: loanTerm,
+                            extraMonthlyPayment: 0,
+                            oneTimeExtraPayment: oneTimePayment,
+                            extraPaymentMonth: extraPaymentMonth
+                        })
+                    });
+                    const oneTimeSchedule = await oneTimeResponse.json();
+                    const originalSchedule = await (await fetch('http://localhost:5001/api/mortgage/amortization-schedule', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            loanAmount: loanAmount,
+                            annualInterestRate: interestRate,
+                            loanTermYears: loanTerm
+                        })
+                    })).json();
+                    
+                    const originalInterest = originalSchedule.reduce((sum, p) => sum + p.interestPayment, 0);
+                    const oneTimeInterest = oneTimeSchedule.reduce((sum, p) => sum + p.interestPayment, 0);
+                    
+                    oneTimeScenario = {
+                        monthlyPayment: baseData,
+                        totalInterest: oneTimeInterest,
+                        totalPayment: loanAmount + oneTimeInterest,
+                        termMonths: oneTimeSchedule.length
+                    };
+                }
+                
                 const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+                const formatMonths = (months) => {
+                    const years = Math.floor(months / 12);
+                    const remaining = months % 12;
+                    if (years > 0 && remaining > 0) return `${years}y ${remaining}m`;
+                    if (years > 0) return `${years} years`;
+                    return `${remaining} months`;
+                };
                 
                 document.getElementById('monthlyPayment').textContent = formatGBP(baseData);
                 document.getElementById('totalInterest').textContent = formatGBP(extraData.totalInterestPaid);
@@ -383,6 +491,8 @@
                 document.getElementById('termReduction').textContent = extraData.monthsSaved > 0 ? extraData.monthsSaved.toFixed(1) + ' months' : '-';
                 
                 updateSchedule(loanAmount, interestRate, loanTerm, extraPayment);
+                
+                renderSavingsTable(loanAmount);
                 
                 resultsContainer.innerHTML = '<div class="message success"><i class="fas fa-check-circle"></i> Calculation completed!</div>';
                 
@@ -394,7 +504,7 @@
         
         async function updateSchedule(loanAmount, interestRate, loanTerm, extraPayment) {
             try {
-                const response = await fetch('http://localhost:5000/api/mortgage/amortization-schedule-extra', {
+                const response = await fetch('http://localhost:5001/api/mortgage/amortization-schedule-extra', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -466,6 +576,62 @@
                 renderSchedule();
                 renderPagination();
             }
+        }
+        
+        function renderSavingsTable(loanAmount) {
+            const savingsCard = document.getElementById('savingsCard');
+            const tableBody = document.getElementById('savingsTableBody');
+            const oneTimePayment = parseFormattedNumber(document.getElementById('oneTimePayment').value);
+            
+            const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+            const formatMonths = (months) => {
+                const years = Math.floor(months / 12);
+                const remaining = months % 12;
+                if (years > 0 && remaining > 0) return `${years}y ${remaining}m`;
+                if (years > 0) return `${years} years`;
+                return `${remaining} months`;
+            };
+            
+            let rows = `
+                <tr>
+                    <td><strong>Standard</strong></td>
+                    <td>${formatGBP(baseScenario.monthlyPayment)}</td>
+                    <td>${formatGBP(baseScenario.totalInterest)}</td>
+                    <td>${formatGBP(baseScenario.totalPayment)}</td>
+                    <td>${formatMonths(baseScenario.termMonths)}</td>
+                </tr>
+            `;
+            
+            if (extraPayment > 0) {
+                const interestSaved = baseScenario.totalInterest - extraScenario.totalInterest;
+                const timeSaved = baseScenario.termMonths - extraScenario.termMonths;
+                rows += `
+                    <tr style="background: #e8f5e9;">
+                        <td><strong>+£${extraPayment}/month</strong></td>
+                        <td>${formatGBP(extraScenario.monthlyPayment)}</td>
+                        <td>${formatGBP(extraScenario.totalInterest)} <span style="color: #2e7d32;">(-${formatGBP(interestSaved)})</span></td>
+                        <td>${formatGBP(extraScenario.totalPayment)}</td>
+                        <td>${formatMonths(extraScenario.termMonths)} <span style="color: #2e7d32;">(-${formatMonths(timeSaved)})</span></td>
+                    </tr>
+                `;
+            }
+            
+            if (oneTimePayment > 0 && oneTimeScenario.monthlyPayment) {
+                const interestSaved = baseScenario.totalInterest - oneTimeScenario.totalInterest;
+                const timeSaved = baseScenario.termMonths - oneTimeScenario.termMonths;
+                rows += `
+                    <tr style="background: #e3f2fd;">
+                        <td><strong>+£${oneTimePayment} once</strong></td>
+                        <td>${formatGBP(oneTimeScenario.monthlyPayment)}</td>
+                        <td>${formatGBP(oneTimeScenario.totalInterest)} <span style="color: #1565c0;">(-${formatGBP(interestSaved)})</span></td>
+                        <td>${formatGBP(oneTimeScenario.totalPayment)}</td>
+                        <td>${formatMonths(oneTimeScenario.termMonths)} <span style="color: #1565c0;">(-${formatMonths(timeSaved)})</span></td>
+                    </tr>
+                `;
+            }
+            
+            tableBody.innerHTML = rows;
+            savingsCard.style.display = 'block';
         }
     </script>
 </body>

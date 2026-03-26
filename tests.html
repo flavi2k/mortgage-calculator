@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Calculator Tests</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        h1 { color: #333; }
+        .summary { font-size: 1.2em; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Mortgage Calculator Tests</h1>
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5001/api/mortgage';
+        
+        const tests = [
+            {
+                name: 'Calculate monthly payment - Basic',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/calculate-monthly-payment`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23
+                    });
+                    const expected = 1318.52;
+                    const actual = response.data;
+                    return { pass: Math.abs(actual - expected) < 1, expected: expected, actual: actual };
+                }
+            },
+            {
+                name: 'Calculate monthly payment - £300,000 for 30 years at 4.5%',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/calculate-monthly-payment`, {
+                        loanAmount: 300000,
+                        annualInterestRate: 4.5,
+                        loanTermYears: 30
+                    });
+                    const expected = 1520.06;
+                    const actual = response.data;
+                    return { pass: Math.abs(actual - expected) < 1, expected: expected, actual: actual };
+                }
+            },
+            {
+                name: 'Generate amortization schedule - 23 years',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/amortization-schedule`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23
+                    });
+                    const expected = 23 * 12;
+                    const actual = response.data.length;
+                    return { pass: actual === expected, expected: expected, actual: actual };
+                }
+            },
+            {
+                name: 'Extra payment scenario - £200/month extra',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/extra-payment-scenario`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23,
+                        extraMonthlyPayment: 200
+                    });
+                    const data = response.data;
+                    return { 
+                        pass: data.monthsSaved > 0 && data.totalInterestSaved > 0,
+                        details: `Months saved: ${data.monthsSaved}, Interest saved: £${data.totalInterestSaved}`
+                    };
+                }
+            },
+            {
+                name: 'Amortization with extra monthly payment',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/amortization-schedule-extra`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23,
+                        extraMonthlyPayment: 100
+                    });
+                    const schedule = response.data;
+                    const lastPayment = schedule[schedule.length - 1];
+                    return { 
+                        pass: lastPayment.remainingBalance < 100,
+                        details: `Final balance: £${lastPayment.remainingBalance.toFixed(2)}`
+                    };
+                }
+            },
+            {
+                name: 'One-time extra payment at month 12',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/amortization-schedule-one-time`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23,
+                        oneTimeExtraPayment: 10000,
+                        extraPaymentMonth: 12
+                    });
+                    const schedule = response.data;
+                    const payment12 = schedule[11];
+                    return { 
+                        pass: payment12.principalPayment > 5000,
+                        details: `Month 12 principal: £${payment12.principalPayment.toFixed(2)}`
+                    };
+                }
+            },
+            {
+                name: 'Amortization schedule - first payment breakdown',
+                run: async () => {
+                    const response = await axios.post(`${API_BASE}/amortization-schedule`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23
+                    });
+                    const schedule = response.data;
+                    const first = schedule[0];
+                    const total = first.principalPayment + first.interestPayment;
+                    return { 
+                        pass: Math.abs(total - 1318.52) < 0.1,
+                        details: `Principal: £${first.principalPayment.toFixed(2)}, Interest: £${first.interestPayment.toFixed(2)}`
+                    };
+                }
+            },
+            {
+                name: 'Zero extra payment - should be same as standard',
+                run: async () => {
+                    const standard = await axios.post(`${API_BASE}/amortization-schedule`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23
+                    });
+                    const withExtra = await axios.post(`${API_BASE}/amortization-schedule-extra`, {
+                        loanAmount: 215000,
+                        annualInterestRate: 5.05,
+                        loanTermYears: 23,
+                        extraMonthlyPayment: 0
+                    });
+                    return { 
+                        pass: standard.data.length === withExtra.data.length,
+                        details: `Standard: ${standard.data.length}, With 0 extra: ${withExtra.data.length}`
+                    };
+                }
+            }
+        ];
+        
+        async function runTests() {
+            const resultsDiv = document.getElementById('results');
+            let passed = 0;
+            let failed = 0;
+            
+            for (const test of tests) {
+                try {
+                    const result = await test.run();
+                    if (result.pass) {
+                        passed++;
+                        resultsDiv.innerHTML += `<div class="test-result pass">✓ ${test.name}</div>`;
+                    } else {
+                        failed++;
+                        const details = result.details || `Expected: ${result.expected}, Got: ${result.actual}`;
+                        resultsDiv.innerHTML += `<div class="test-result fail">✗ ${test.name} - ${details}</div>`;
+                    }
+                } catch (error) {
+                    failed++;
+                    resultsDiv.innerHTML += `<div class="test-result fail">✗ ${test.name} - Error: ${error.message}</div>`;
+                }
+            }
+            
+            resultsDiv.innerHTML += `<div class="summary">${passed} passed, ${failed} failed</div>`;
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

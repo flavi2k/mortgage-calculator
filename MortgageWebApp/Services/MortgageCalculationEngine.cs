@@ -89,6 +89,8 @@ namespace MortgageWebApp.Services
 
             for (int i = 1; i <= numberOfPayments; i++)
             {
+                if (balance <= 0) break;
+                
                 decimal interestPayment = balance * monthlyInterestRate;
                 decimal principalPayment = monthlyPayment - interestPayment;
                 decimal totalExtraPayment = extraMonthlyPayment;

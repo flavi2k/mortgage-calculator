@@ -102,5 +102,30 @@ namespace MortgageWebApp.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Generate amortization schedule with one-time extra payment.
+        /// </summary>
+        [HttpPost("amortization-schedule-one-time")]
+        public ActionResult<List<PaymentSchedule>> GetAmortizationScheduleWithOneTimePayment([FromBody] MortgageDetails mortgageDetails)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = _mortgageCalculationEngine.GenerateAmortizationScheduleWithOneTimeExtraPayment(
+                    mortgageDetails, 
+                    mortgageDetails.OneTimeExtraPayment, 
+                    mortgageDetails.ExtraPaymentMonth);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
