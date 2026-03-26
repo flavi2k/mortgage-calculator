@@ -98,6 +98,21 @@
             box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
         }
         
+        .form-group select {
+            padding: 14px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .form-group select:focus {
+            border-color: #4a90d9;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+        }
+        
         .btn {
             background: #4a90d9;
             color: white;
@@ -1259,13 +1274,26 @@
         
         function addMortgagePeriod() {
             const periodIndex = mortgagePeriods.length;
-            const startDate = new Date();
-            startDate.setFullYear(startDate.getFullYear() + (periodIndex * 2));
+            let startDate = new Date();
+            let loanAmount = 200000;
+            
+            if (periodIndex > 0 && mortgagePeriods[periodIndex - 1]) {
+                const prevPeriod = mortgagePeriods[periodIndex - 1];
+                const prevStart = new Date(prevPeriod.startDate);
+                startDate = new Date(prevStart.getFullYear() + prevPeriod.loanTermYears, prevStart.getMonth(), prevStart.getDate());
+                loanAmount = Math.round(prevPeriod.loanAmount * 0.9);
+            } else if (periodIndex > 0) {
+                startDate.setFullYear(startDate.getFullYear() + 25);
+            }
+            
+            const defaultFixedPeriod = periodIndex === 0 ? 5 : 2;
+            const defaultTerm = periodIndex === 0 ? 25 : 23;
             
             mortgagePeriods.push({
-                loanAmount: 200000,
-                annualInterestRate: 5.0,
-                loanTermYears: 25,
+                loanAmount: loanAmount,
+                annualInterestRate: periodIndex > 0 ? 4.5 : 5.0,
+                loanTermYears: defaultTerm,
+                fixedPeriodYears: defaultFixedPeriod,
                 startDate: startDate.toISOString().split('T')[0],
                 earlyRepaymentCapPercent: 10,
                 extraPayments: []
@@ -1282,12 +1310,53 @@
         function updatePeriodField(index, field, value) {
             if (field === 'loanAmount' || field === 'extraPayment') {
                 mortgagePeriods[index][field] = parseFormattedNumber(value);
+                if (field === 'loanAmount' && index < mortgagePeriods.length - 1) {
+                    updateNextPeriodLoanAmount(index);
+                }
             } else if (field === 'annualInterestRate' || field === 'earlyRepaymentCapPercent') {
                 mortgagePeriods[index][field] = parseFloat(value);
             } else if (field === 'loanTermYears') {
                 mortgagePeriods[index][field] = parseInt(value);
+                if (index < mortgagePeriods.length - 1) {
+                    recalculateSubsequentPeriods(index);
+                }
+            } else if (field === 'fixedPeriodYears') {
+                mortgagePeriods[index][field] = parseInt(value);
+                if (index < mortgagePeriods.length - 1) {
+                    recalculateSubsequentPeriods(index);
+                }
             } else {
                 mortgagePeriods[index][field] = value;
+            }
+        }
+        
+        function recalculateSubsequentPeriods(fromIndex) {
+            for (let i = fromIndex; i < mortgagePeriods.length - 1; i++) {
+                const currPeriod = mortgagePeriods[i];
+                const nextPeriod = mortgagePeriods[i + 1];
+                const currStart = new Date(currPeriod.startDate);
+                
+                nextPeriod.startDate = new Date(currStart.getFullYear() + currPeriod.loanTermYears, currStart.getMonth(), currStart.getDate()).toISOString().split('T')[0];
+                nextPeriod.loanAmount = Math.round(currPeriod.loanAmount * 0.9);
+            }
+            renderPeriods();
+        }
+        
+        function updateNextPeriodLoanAmount(prevIndex) {
+            if (mortgagePeriods[prevIndex + 1]) {
+                mortgagePeriods[prevIndex + 1].loanAmount = Math.round(mortgagePeriods[prevIndex].loanAmount * 0.9);
+                renderPeriods();
+            }
+        }
+        
+        function updateNextPeriodStartDate(prevIndex) {
+            const prevPeriod = mortgagePeriods[prevIndex];
+            const prevStart = new Date(prevPeriod.startDate);
+            const nextStartDate = new Date(prevStart.getFullYear() + prevPeriod.loanTermYears, prevStart.getMonth(), prevStart.getDate());
+            
+            if (mortgagePeriods[prevIndex + 1]) {
+                mortgagePeriods[prevIndex + 1].startDate = nextStartDate.toISOString().split('T')[0];
+                renderPeriods();
             }
         }
         
@@ -1297,6 +1366,7 @@
             
             mortgagePeriods.forEach((period, index) => {
                 const isRemortgage = index > 0;
+                const isStartDateEditable = index === 0 || (index > 0 && mortgagePeriods[index - 1].fixedPeriodYears === undefined);
                 const div = document.createElement('div');
                 div.className = 'period-card';
                 div.innerHTML = `
@@ -1309,8 +1379,16 @@
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>Start Date</label>
-                            <input type="date" value="${period.startDate}" onchange="updatePeriodField(${index}, 'startDate', this.value)">
+                            <label>Start Date ${isRemortgage ? '(auto-calculated)' : ''}</label>
+                            <input type="date" value="${period.startDate}" ${!isStartDateEditable ? 'readonly' : ''} onchange="updatePeriodField(${index}, 'startDate', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Fixed Period (years)</label>
+                            <select onchange="updatePeriodField(${index}, 'fixedPeriodYears', this.value)">
+                                <option value="2" ${period.fixedPeriodYears === 2 ? 'selected' : ''}>2 years</option>
+                                <option value="5" ${period.fixedPeriodYears === 5 ? 'selected' : ''}>5 years</option>
+                                <option value="10" ${period.fixedPeriodYears === 10 ? 'selected' : ''}>10 years</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Loan Amount (£)</label>
@@ -1367,27 +1445,75 @@
         }
         
         function addExtraPaymentRow(index) {
-            const nextMonth = mortgagePeriods[index].extraPayments.length + 1;
+            const existingPayments = mortgagePeriods[index].extraPayments;
+            let nextMonth = 1;
+            if (existingPayments.length > 0) {
+                const maxMonth = Math.max(...existingPayments.map(ep => ep.monthNumber));
+                nextMonth = maxMonth + 1;
+            }
             mortgagePeriods[index].extraPayments.push({ monthNumber: nextMonth, amount: 0 });
             renderExtraPaymentRows(index);
         }
         
-        function updateExtraPayment(index, monthNum, amount) {
-            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === monthNum);
+        function updateExtraPaymentAmount(index, monthNum, amount) {
+            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === parseInt(monthNum));
             if (entry) {
-                entry.amount = parseFloat(amount) || 0;
+                entry.amount = parseFloat(String(amount).replace(/,/g, '')) || 0;
             }
+        }
+        
+        function updateExtraPaymentMonth(index, inputEl) {
+            const newMonthNum = parseInt(inputEl.value) || 1;
+            const oldMonthNum = parseInt(inputEl.getAttribute('data-old') || newMonthNum);
+            
+            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === oldMonthNum);
+            if (entry) {
+                const hasOtherEntry = mortgagePeriods[index].extraPayments.some(e => e.monthNumber === newMonthNum && e !== entry);
+                if (!hasOtherEntry) {
+                    entry.monthNumber = newMonthNum;
+                } else {
+                    inputEl.value = oldMonthNum;
+                }
+            }
+            renderExtraPaymentRows(index);
+        }
+        
+        function updateExtraPaymentAmountDirect(index, amountInputId) {
+            const inputEl = document.getElementById(amountInputId);
+            if (!inputEl) return;
+            
+            const amount = inputEl.value;
+            const cleanAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
+            
+            const amountIdNum = parseInt(amountInputId.split('_').pop());
+            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === amountIdNum);
+            if (entry) {
+                entry.amount = cleanAmount;
+            }
+            
+            formatCurrency(inputEl);
+        }
+        
+        function removeExtraPaymentRowDirect(index, monthNum) {
+            mortgagePeriods[index].extraPayments = mortgagePeriods[index].extraPayments.filter(ep => ep.monthNumber !== monthNum);
+            renderExtraPaymentRows(index);
         }
         
         function renderExtraPaymentRows(index) {
             const tbody = document.getElementById(`extraPaymentsBody_${index}`);
+            if (!tbody) return;
             tbody.innerHTML = '';
             
-            mortgagePeriods[index].extraPayments.forEach((ep, i) => {
+            const sortedPayments = [...mortgagePeriods[index].extraPayments].sort((a, b) => a.monthNumber - b.monthNumber);
+            
+            sortedPayments.forEach((ep) => {
                 const row = document.createElement('tr');
+                const monthId = `extraMonth_${index}_${ep.monthNumber}`;
+                const amountId = `extraAmount_${index}_${ep.monthNumber}`;
                 row.innerHTML = `
-                    <td><input type="number" value="${ep.monthNumber}" style="width: 80px;" onchange="updateExtraPayment(${index}, ${ep.monthNumber}, this.value); this.value = this.value"></td>
-                    <td><input type="text" value="${ep.amount.toLocaleString('en-GB')}" onblur="formatCurrency(this); updateExtraPayment(${index}, ${ep.monthNumber}, this.value)" onfocus="unformatCurrency(this)"></td>
+                    <td><input type="number" id="${monthId}" value="${ep.monthNumber}" min="1" style="width: 80px;" onchange="updateExtraPaymentMonth(${index}, this)"></td>
+                    <td><input type="text" id="${amountId}" value="${ep.amount.toLocaleString('en-GB')}" onblur="updateExtraPaymentAmountDirect(${index}, '${amountId}')" onfocus="unformatCurrency(this)"></td>
+                    <td><button type="button" style="background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;" onclick="removeExtraPaymentRowDirect(${index}, ${ep.monthNumber})"><i class="fas fa-trash"></i></button></td>
                 `;
                 tbody.appendChild(row);
             });

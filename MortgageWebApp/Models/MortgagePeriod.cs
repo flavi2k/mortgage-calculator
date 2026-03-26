@@ -15,6 +15,8 @@ namespace MortgageWebApp.Models
         
         public DateTime StartDate { get; set; } = DateTime.Now;
         
+        public int FixedPeriodYears { get; set; } = 5;
+        
         public decimal EarlyRepaymentCapPercent { get; set; } = 10m;
         
         public List<ExtraPaymentEntry> ExtraPayments { get; set; } = new();
