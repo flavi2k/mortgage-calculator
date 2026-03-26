@@ -237,6 +237,19 @@
             border: 1px solid #bbdefb;
             text-align: center;
         }
+        
+        @media print {
+            body { background: white; padding: 10px; }
+            .card { box-shadow: none; border: 1px solid #ddd; margin-bottom: 15px; page-break-inside: avoid; }
+            .btn { display: none; }
+            .pagination { display: none; }
+            .schedule-table { font-size: 10px; }
+            .schedule-table th, .schedule-table td { padding: 4px; }
+            h1, h2, h3 { color: #333; }
+            #financialAdvisor { display: block !important; }
+            #ltvCard { display: block !important; }
+            #savingsCard { display: block !important; }
+        }
     </style>
 </head>
 <body>
@@ -288,6 +301,21 @@
             <button id="calculateBtn" class="btn">
                 <i class="fas fa-calculator"></i> Calculate Mortgage
             </button>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button type="button" class="btn" style="background: #28a745;" onclick="saveCalculation()">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button type="button" class="btn" style="background: #6c757d;" onclick="loadCalculation()">
+                    <i class="fas fa-folder-open"></i> Load
+                </button>
+                <button type="button" class="btn" style="background: #dc3545;" onclick="clearSaved()">
+                    <i class="fas fa-trash"></i> Clear Saved
+                </button>
+                <button type="button" class="btn" style="background: #17a2b8;" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print / PDF
+                </button>
+            </div>
             
             <div id="resultsContainer"></div>
         </div>
@@ -927,6 +955,51 @@
                 newDiv.id = 'financialAdvisor';
                 newDiv.innerHTML = advisorHTML;
                 ltvCard.appendChild(newDiv);
+            }
+        }
+        
+        function saveCalculation() {
+            const formatInput = (id) => {
+                const val = document.getElementById(id).value;
+                return val.replace(/,/g, '') || '0';
+            };
+            const data = {
+                loanAmount: formatInput('loanAmount'),
+                interestRate: document.getElementById('interestRate').value,
+                loanTerm: document.getElementById('loanTerm').value,
+                extraPayment: formatInput('extraPayment'),
+                oneTimePayment: formatInput('oneTimePayment'),
+                extraPaymentMonth: document.getElementById('extraPaymentMonth').value,
+                propertyValue: formatInput('propertyValue'),
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem('mortgageCalculation', JSON.stringify(data));
+            alert('Calculation saved!');
+        }
+        
+        function loadCalculation() {
+            const saved = localStorage.getItem('mortgageCalculation');
+            if (!saved) {
+                alert('No saved calculation found.');
+                return;
+            }
+            const data = JSON.parse(saved);
+            document.getElementById('loanAmount').value = parseFloat(data.loanAmount).toLocaleString('en-GB');
+            document.getElementById('interestRate').value = data.interestRate;
+            document.getElementById('loanTerm').value = data.loanTerm;
+            document.getElementById('extraPayment').value = parseFloat(data.extraPayment || 0).toLocaleString('en-GB');
+            document.getElementById('oneTimePayment').value = parseFloat(data.oneTimePayment || 0).toLocaleString('en-GB');
+            document.getElementById('extraPaymentMonth').value = data.extraPaymentMonth;
+            document.getElementById('propertyValue').value = parseFloat(data.propertyValue).toLocaleString('en-GB');
+            
+            calculateMortgage();
+            alert('Calculation loaded from ' + new Date(data.savedAt).toLocaleString());
+        }
+        
+        function clearSaved() {
+            if (confirm('Clear saved calculation?')) {
+                localStorage.removeItem('mortgageCalculation');
+                alert('Saved calculation cleared.');
             }
         }
     </script>
