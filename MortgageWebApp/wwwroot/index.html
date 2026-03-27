@@ -1820,7 +1820,7 @@
                 const monthName = paymentDate.toLocaleDateString('en-GB', { month: 'short' });
                 const year = paymentDate.getFullYear();
                 
-                const extraPaymentVal = payment.extraPayment || 0;
+                const extraPaymentVal = extraPaymentsMap[payment.paymentNumber] || payment.extraPayment || 0;
                 const basePayment = payment.totalPayment;
                 const totalWithExtra = basePayment + extraPaymentVal;
                 
