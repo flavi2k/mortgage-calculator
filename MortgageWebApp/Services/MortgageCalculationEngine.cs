@@ -234,18 +234,23 @@ namespace MortgageWebApp.Services
             var combinedSchedule = new List<PaymentSchedule>();
             decimal balance = 0;
             int globalPaymentNumber = 1;
+            bool isSinglePeriod = periods.Count == 1;
 
             for (int periodIndex = 0; periodIndex < periods.Count; periodIndex++)
             {
                 var period = periods[periodIndex];
                 
                 int fixedPeriodMonths = period.FixedPeriodYears * 12;
+                int totalPeriodMonths = period.LoanTermYears * 12;
+                
+                int monthsToGenerate = isSinglePeriod ? totalPeriodMonths : fixedPeriodMonths;
                 
                 var periodSchedule = GenerateAmortizationScheduleWithFixedPeriod(
                     period.LoanAmount,
                     period.AnnualInterestRate,
                     period.LoanTermYears,
                     period.FixedPeriodYears,
+                    monthsToGenerate,
                     period.StartDate,
                     period.EarlyRepaymentCapPercent,
                     period.ExtraPayments,
@@ -307,6 +312,7 @@ namespace MortgageWebApp.Services
             decimal annualInterestRate,
             int termYears,
             int fixedPeriodYears,
+            int monthsToGenerate,
             DateTime startDate,
             decimal earlyRepaymentCapPercent,
             List<ExtraPaymentEntry> extraPayments,
@@ -317,7 +323,6 @@ namespace MortgageWebApp.Services
             decimal balance = carryOverBalance > 0 ? carryOverBalance : loanAmount;
             decimal monthlyInterestRate = annualInterestRate / 100 / 12;
             int totalMonths = termYears * 12;
-            int fixedMonths = fixedPeriodYears * 12;
             
             decimal monthlyPayment = CalculateMonthlyPaymentForPeriod(loanAmount, annualInterestRate, termYears);
             
@@ -329,7 +334,6 @@ namespace MortgageWebApp.Services
 
             var extraPaymentMap = extraPayments.ToDictionary(e => e.MonthNumber, e => e.Amount);
 
-            int monthsToGenerate = Math.Min(fixedMonths, totalMonths);
             for (int i = 1; i <= monthsToGenerate; i++)
             {
                 if (balance <= 0) break;

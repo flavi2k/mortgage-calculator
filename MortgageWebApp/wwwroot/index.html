@@ -364,6 +364,12 @@
             color: #721c24;
         }
         
+        .period-separator td {
+            background: #e8f5e9 !important;
+            font-weight: 600;
+            border-top: 2px solid #4a90d9;
+        }
+        
         .add-period-btn {
             background: #17a2b8;
             color: white;
@@ -1623,7 +1629,24 @@
             const end = start + itemsPerPage;
             const pageItems = portfolioSchedule.slice(start, end);
             
+            let lastPeriodIndex = -1;
+            
+            // If not first page, set lastPeriodIndex to the period of the last payment from previous page
+            if (portfolioPage > 1) {
+                const prevPaymentNumber = (portfolioPage - 1) * itemsPerPage;
+                lastPeriodIndex = getPeriodIndexForPayment(prevPaymentNumber);
+            }
+            
             pageItems.forEach(payment => {
+                const paymentPeriodIndex = getPeriodIndexForPayment(payment.paymentNumber);
+                
+                if (paymentPeriodIndex > lastPeriodIndex && lastPeriodIndex !== -1) {
+                    const separatorRow = document.createElement('tr');
+                    separatorRow.className = 'period-separator';
+                    separatorRow.innerHTML = `<td colspan="9" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
+                    tbody.appendChild(separatorRow);
+                }
+                
                 const row = document.createElement('tr');
                 const capClass = payment.isOverCap ? 'over' : 'under';
                 const capText = payment.isOverCap ? 'OVER' : 'OK';
@@ -1640,10 +1663,24 @@
                     <td><span class="cap-indicator ${capClass}">${capText}</span></td>
                 `;
                 tbody.appendChild(row);
+                
+                lastPeriodIndex = paymentPeriodIndex;
             });
             
             card.style.display = 'block';
             renderPortfolioPagination();
+        }
+        
+        function getPeriodIndexForPayment(paymentNumber) {
+            let monthCounter = 0;
+            for (let i = 0; i < mortgagePeriods.length; i++) {
+                const periodMonths = mortgagePeriods[i].fixedPeriodYears * 12;
+                if (paymentNumber <= monthCounter + periodMonths) {
+                    return i;
+                }
+                monthCounter += periodMonths;
+            }
+            return mortgagePeriods.length - 1;
         }
         
         function renderPortfolioPagination() {
