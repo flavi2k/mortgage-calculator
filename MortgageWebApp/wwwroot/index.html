@@ -354,31 +354,26 @@
         .schedule-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-
-        .schedule-table thead {
-            display: table-header-group;
-        }
-
-        .schedule-table tbody {
-            display: table-row-group;
-        }
-
-        .schedule-table tr {
-            display: table-row;
+            font-size: 0.85rem;
         }
 
         .schedule-table th,
         .schedule-table td {
-            display: table-cell;
+            padding: 10px 8px;
+            text-align: right;
         }
 
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            max-width: 100%;
+        .schedule-table th:first-child,
+        .schedule-table td:first-child {
+            text-align: center;
         }
+
+        .schedule-table th:nth-child(2),
+        .schedule-table td:nth-child(2) {
+            text-align: left;
+        }
+
+
         
         .schedule-table th {
             background: linear-gradient(135deg, var(--secondary) 0%, #1e293b 100%);
@@ -753,29 +748,22 @@
                         <i class="fas fa-calculator"></i> Recalculate
                     </button>
                 </div>
-                <div class="table-wrapper">
-                    <table class="schedule-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Month</th>
-                                <th>Date</th>
-                                <th>Payment</th>
-                                <th>Extra Payment</th>
-                                <th>Total Payment</th>
-                                <th>Principal</th>
-                                <th>Interest</th>
-                                <th>Balance</th>
-                                <th>LTV %</th>
-                                <th>Year</th>
-                                <th>Max 10%</th>
-                                <th>Over Cap</th>
-                            </tr>
-                        </thead>
-                        <tbody id="portfolioScheduleBody">
-                        </tbody>
-                    </table>
-                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Payment</th>
+                            <th>Extra</th>
+                            <th>Total</th>
+                            <th>Principal</th>
+                            <th>Interest</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="portfolioScheduleBody">
+                    </tbody>
+                </table>
                 <div id="portfolioPagination" class="pagination"></div>
             </div>
         </div>
@@ -819,45 +807,41 @@
         
         <div class="card">
             <h2 class="section-title"><i class="fas fa-table"></i> Amortization Schedule</h2>
-            <div class="table-wrapper">
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Date</th>
-                            <th>Payment</th>
-                            <th>Principal</th>
-                            <th>Interest</th>
-                            <th>Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduleTableBody">
-                        <tr>
-                            <td colspan="6" style="text-align: center; color: #888;">Enter loan details and click calculate</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Payment</th>
+                        <th>Principal</th>
+                        <th>Interest</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #888;">Enter loan details and click calculate</td>
+                    </tr>
+                </tbody>
+            </table>
             <div id="paginationContainer" class="pagination"></div>
         </div>
         
         <div class="card" id="savingsCard" style="display: none;">
             <h2 class="section-title"><i class="fas fa-comparison"></i> Payment Comparison & Savings</h2>
-            <div class="table-wrapper">
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>Scenario</th>
-                            <th>Monthly Payment</th>
-                            <th>Total Interest</th>
-                            <th>Total Payment</th>
-                            <th>Time to Pay Off</th>
-                        </tr>
-                    </thead>
-                    <tbody id="savingsTableBody">
-                    </tbody>
-                </table>
-            </div>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Monthly</th>
+                        <th>Total Interest</th>
+                        <th>Total</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="savingsTableBody">
+                </tbody>
+            </table>
         </div>
         
         <div class="card" id="ltvCard" style="display: none;">
@@ -1778,13 +1762,11 @@
                 if (paymentPeriodIndex > lastPeriodIndex && lastPeriodIndex !== -1) {
                     const separatorRow = document.createElement('tr');
                     separatorRow.className = 'period-separator';
-                    separatorRow.innerHTML = `<td colspan="13" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
+                    separatorRow.innerHTML = `<td colspan="8" style="text-align: center; font-weight: 600; padding: 8px;">🔄 Remortgage Period ${paymentPeriodIndex}</td>`;
                     tbody.appendChild(separatorRow);
                 }
                 
                 const row = document.createElement('tr');
-                const capClass = payment.isOverCap ? 'over' : 'under';
-                const capText = payment.isOverCap ? 'OVER' : 'OK';
                 
                 const paymentDate = new Date(payment.paymentDate);
                 const monthName = paymentDate.toLocaleDateString('en-GB', { month: 'short' });
@@ -1797,17 +1779,12 @@
                 row.innerHTML = `
                     <td>${payment.paymentNumber}</td>
                     <td>${monthName} ${year}</td>
-                    <td>${paymentDate.toLocaleDateString()}</td>
                     <td>${formatGBP(basePayment)}</td>
-                    <td><input type="text" value="${extraPaymentVal.toLocaleString('en-GB')}" style="width: 80px; padding: 4px;" onblur="updateExtraPaymentInSchedule(${payment.paymentNumber}, this.value)" onfocus="unformatCurrency(this)"></td>
+                    <td><input type="text" value="${extraPaymentVal.toLocaleString('en-GB')}" style="width: 60px; padding: 2px; font-size: 0.8rem;" onblur="updateExtraPaymentInSchedule(${payment.paymentNumber}, this.value)" onfocus="unformatCurrency(this)"></td>
                     <td>${formatGBP(totalWithExtra)}</td>
                     <td>${formatGBP(payment.principalPayment)}</td>
                     <td>${formatGBP(payment.interestPayment)}</td>
                     <td>${formatGBP(payment.remainingBalance)}</td>
-                    <td>${((payment.remainingBalance / propertyValue) * 100).toFixed(2)}%</td>
-                    <td>${payment.yearNumber}</td>
-                    <td>${formatGBP(payment.maxCapPayment)}</td>
-                    <td><span class="cap-indicator ${capClass}">${capText}</span></td>
                 `;
                 tbody.appendChild(row);
                 
