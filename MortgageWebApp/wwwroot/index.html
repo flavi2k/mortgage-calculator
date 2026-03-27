@@ -1904,7 +1904,7 @@
                     const amount = extraPaymentsMap[pm];
                     if (amount > 0 && pm > periodStartMonth && pm <= periodStartMonth + (period.loanTermYears * 12)) {
                         periodExtraPayments.push({
-                            month: pm - periodStartMonth,
+                            monthNumber: pm - periodStartMonth,
                             amount: amount
                         });
                     }
