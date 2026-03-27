@@ -424,6 +424,12 @@
         .tab-content.active {
             display: block;
         }
+        
+        .tab-content.active.wide {
+            max-width: 100%;
+            margin: 0 -200px;
+            padding: 0 200px;
+        }
     </style>
 </head>
 <body>
@@ -505,7 +511,7 @@
         </div>
         </div>
         
-        <div id="portfolioTabContent" class="tab-content active">
+        <div id="portfolioTabContent" class="tab-content active wide">
             <div class="card">
                 <h2 class="section-title">Mortgage Portfolio</h2>
                 <p style="color: #666; margin-bottom: 20px;">Add multiple mortgage periods (initial + remortgages) to see the full picture.</p>
