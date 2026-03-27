@@ -84,17 +84,10 @@
             margin-bottom: 24px;
             border: 1px solid var(--border);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            overflow: hidden;
         }
 
         .card:hover {
             box-shadow: var(--shadow-lg);
-        }
-
-        .card table {
-            overflow-x: auto;
-            display: block;
-            max-width: 100%;
         }
         
         #portfolioTabContent .card.wide {
@@ -362,18 +355,29 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            display: block;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
         }
 
-        .schedule-table thead,
+        .schedule-table thead {
+            display: table-header-group;
+        }
+
         .schedule-table tbody {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
+            display: table-row-group;
+        }
+
+        .schedule-table tr {
+            display: table-row;
+        }
+
+        .schedule-table th,
+        .schedule-table td {
+            display: table-cell;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
         }
         
         .schedule-table th {
@@ -749,7 +753,7 @@
                         <i class="fas fa-calculator"></i> Recalculate
                     </button>
                 </div>
-                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <div class="table-wrapper">
                     <table class="schedule-table">
                         <thead>
                             <tr>
@@ -766,7 +770,8 @@
                                 <th>Year</th>
                                 <th>Max 10%</th>
                                 <th>Over Cap</th>
-                    </thead>
+                            </tr>
+                        </thead>
                         <tbody id="portfolioScheduleBody">
                         </tbody>
                     </table>
@@ -814,7 +819,7 @@
         
         <div class="card">
             <h2 class="section-title"><i class="fas fa-table"></i> Amortization Schedule</h2>
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div class="table-wrapper">
                 <table class="schedule-table">
                     <thead>
                         <tr>
@@ -838,7 +843,7 @@
         
         <div class="card" id="savingsCard" style="display: none;">
             <h2 class="section-title"><i class="fas fa-comparison"></i> Payment Comparison & Savings</h2>
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div class="table-wrapper">
                 <table class="schedule-table">
                     <thead>
                         <tr>
@@ -848,7 +853,6 @@
                             <th>Total Payment</th>
                             <th>Time to Pay Off</th>
                         </tr>
-                    </tr>
                     </thead>
                     <tbody id="savingsTableBody">
                     </tbody>
