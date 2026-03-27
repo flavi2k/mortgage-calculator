@@ -457,12 +457,21 @@
                 <div id="portfolioResultsContainer"></div>
             </div>
             
-            <div class="card wide" id="portfolioScheduleCard" style="display: none;">
+                <div class="card wide" id="portfolioScheduleCard" style="display: none;">
                 <h2 class="section-title">Portfolio Amortization Schedule</h2>
+                <div style="margin-bottom: 15px; display: flex; gap: 20px; align-items: center;">
+                    <button class="btn" style="background: #28a745; padding: 8px 16px; font-size: 0.9rem;" onclick="addExtraPaymentToSchedule()">
+                        <i class="fas fa-plus"></i> Add Extra Payment to Schedule
+                    </button>
+                    <button class="btn" style="background: #4a90d9; padding: 8px 16px; font-size: 0.9rem;" onclick="calculatePortfolio()">
+                        <i class="fas fa-calculator"></i> Recalculate
+                    </button>
+                </div>
                 <table class="schedule-table">
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Month</th>
                             <th>Date</th>
                             <th>Payment</th>
                             <th>Extra Payment</th>
@@ -1360,28 +1369,6 @@
                             <input type="number" step="0.1" value="${period.earlyRepaymentCapPercent}" onchange="updatePeriodField(${index}, 'earlyRepaymentCapPercent', this.value)">
                         </div>
                     </div>
-                    <div style="margin-top: 16px;">
-                        <button type="button" class="btn" style="background: #6c757d; padding: 10px 16px; font-size: 0.9rem;" onclick="toggleExtraPayments(${index})">
-                            <i class="fas fa-plus-circle"></i> Add Extra Payments
-                        </button>
-                        <div id="extraPayments_${index}" class="extra-payment-grid" style="display: none;">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Month</th>
-                                        <th>Extra Amount (£)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="extraPaymentsBody_${index}">
-                                </tbody>
-                            </table>
-                            <div style="padding: 10px;">
-                                <button type="button" class="btn" style="background: #28a745; padding: 8px 16px; font-size: 0.85rem;" onclick="addExtraPaymentRow(${index})">
-                                    <i class="fas fa-plus"></i> Add Row
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 `;
                 container.appendChild(div);
             });
@@ -1389,87 +1376,6 @@
             if (mortgagePeriods.length === 0) {
                 addMortgagePeriod();
             }
-        }
-        
-        function toggleExtraPayments(index) {
-            const el = document.getElementById(`extraPayments_${index}`);
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-            renderExtraPaymentRows(index);
-        }
-        
-        function addExtraPaymentRow(index) {
-            const existingPayments = mortgagePeriods[index].extraPayments;
-            let nextMonth = 1;
-            if (existingPayments.length > 0) {
-                const maxMonth = Math.max(...existingPayments.map(ep => ep.monthNumber));
-                nextMonth = maxMonth + 1;
-            }
-            mortgagePeriods[index].extraPayments.push({ monthNumber: nextMonth, amount: 0 });
-            renderExtraPaymentRows(index);
-        }
-        
-        function updateExtraPaymentAmount(index, monthNum, amount) {
-            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === parseInt(monthNum));
-            if (entry) {
-                entry.amount = parseFloat(String(amount).replace(/,/g, '')) || 0;
-            }
-        }
-        
-        function updateExtraPaymentMonth(index, inputEl) {
-            const newMonthNum = parseInt(inputEl.value) || 1;
-            const oldMonthNum = parseInt(inputEl.getAttribute('data-old') || newMonthNum);
-            
-            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === oldMonthNum);
-            if (entry) {
-                const hasOtherEntry = mortgagePeriods[index].extraPayments.some(e => e.monthNumber === newMonthNum && e !== entry);
-                if (!hasOtherEntry) {
-                    entry.monthNumber = newMonthNum;
-                } else {
-                    inputEl.value = oldMonthNum;
-                }
-            }
-            renderExtraPaymentRows(index);
-        }
-        
-        function updateExtraPaymentAmountDirect(index, amountInputId) {
-            const inputEl = document.getElementById(amountInputId);
-            if (!inputEl) return;
-            
-            const amount = inputEl.value;
-            const cleanAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
-            
-            const amountIdNum = parseInt(amountInputId.split('_').pop());
-            const entry = mortgagePeriods[index].extraPayments.find(e => e.monthNumber === amountIdNum);
-            if (entry) {
-                entry.amount = cleanAmount;
-            }
-            
-            formatCurrency(inputEl);
-        }
-        
-        function removeExtraPaymentRowDirect(index, monthNum) {
-            mortgagePeriods[index].extraPayments = mortgagePeriods[index].extraPayments.filter(ep => ep.monthNumber !== monthNum);
-            renderExtraPaymentRows(index);
-        }
-        
-        function renderExtraPaymentRows(index) {
-            const tbody = document.getElementById(`extraPaymentsBody_${index}`);
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            
-            const sortedPayments = [...mortgagePeriods[index].extraPayments].sort((a, b) => a.monthNumber - b.monthNumber);
-            
-            sortedPayments.forEach((ep) => {
-                const row = document.createElement('tr');
-                const monthId = `extraMonth_${index}_${ep.monthNumber}`;
-                const amountId = `extraAmount_${index}_${ep.monthNumber}`;
-                row.innerHTML = `
-                    <td><input type="number" id="${monthId}" value="${ep.monthNumber}" min="1" style="width: 80px;" onchange="updateExtraPaymentMonth(${index}, this)"></td>
-                    <td><input type="text" id="${amountId}" value="${ep.amount.toLocaleString('en-GB')}" onblur="updateExtraPaymentAmountDirect(${index}, '${amountId}')" onfocus="unformatCurrency(this)"></td>
-                    <td><button type="button" style="background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;" onclick="removeExtraPaymentRowDirect(${index}, ${ep.monthNumber})"><i class="fas fa-trash"></i></button></td>
-                `;
-                tbody.appendChild(row);
-            });
         }
         
         let portfolioSchedule = [];
@@ -1563,7 +1469,7 @@
                 if (paymentPeriodIndex > lastPeriodIndex && lastPeriodIndex !== -1) {
                     const separatorRow = document.createElement('tr');
                     separatorRow.className = 'period-separator';
-                    separatorRow.innerHTML = `<td colspan="12" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
+                    separatorRow.innerHTML = `<td colspan="13" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
                     tbody.appendChild(separatorRow);
                 }
                 
@@ -1571,11 +1477,17 @@
                 const capClass = payment.isOverCap ? 'over' : 'under';
                 const capText = payment.isOverCap ? 'OVER' : 'OK';
                 
+                const paymentDate = new Date(payment.paymentDate);
+                const monthName = paymentDate.toLocaleDateString('en-GB', { month: 'short' });
+                const year = paymentDate.getFullYear();
+                
+                const extraPaymentVal = payment.extraPayment || 0;
                 row.innerHTML = `
                     <td>${payment.paymentNumber}</td>
-                    <td>${new Date(payment.paymentDate).toLocaleDateString()}</td>
-                    <td>${formatGBP(payment.totalPayment - (payment.extraPayment || 0))}</td>
-                    <td>${formatGBP(payment.extraPayment || 0)}</td>
+                    <td>${monthName} ${year}</td>
+                    <td>${paymentDate.toLocaleDateString()}</td>
+                    <td>${formatGBP(payment.totalPayment - extraPaymentVal)}</td>
+                    <td><input type="text" value="${extraPaymentVal.toLocaleString('en-GB')}" style="width: 80px; padding: 4px;" onblur="updateExtraPaymentInSchedule(${payment.paymentNumber}, this.value)" onfocus="unformatCurrency(this)"></td>
                     <td>${formatGBP(payment.totalPayment)}</td>
                     <td>${formatGBP(payment.principalPayment)}</td>
                     <td>${formatGBP(payment.interestPayment)}</td>
@@ -1624,6 +1536,36 @@
                     Next <i class="fas fa-chevron-right"></i>
                 </button>
             `;
+        }
+        
+        function updateExtraPaymentInSchedule(paymentNumber, value) {
+            const amount = parseFloat(String(value).replace(/,/g, '')) || 0;
+            const payment = portfolioSchedule.find(p => p.paymentNumber === paymentNumber);
+            if (payment) {
+                payment.extraPayment = amount;
+                payment.totalPayment = (payment.totalPayment - payment.extraPayment) + amount;
+            }
+            formatCurrency(document.querySelector(`#extraPayment-${paymentNumber}`));
+        }
+        
+        function addExtraPaymentToSchedule() {
+            const monthNum = prompt('Enter month number for extra payment:');
+            if (!monthNum || isNaN(parseInt(monthNum))) return;
+            
+            const amount = prompt('Enter extra payment amount:');
+            if (!amount || isNaN(parseFloat(amount.replace(/,/g, '')))) return;
+            
+            const paymentNum = parseInt(monthNum);
+            const amountValue = parseFloat(amount.replace(/,/g, ''));
+            
+            const payment = portfolioSchedule.find(p => p.paymentNumber === paymentNum);
+            if (payment) {
+                payment.extraPayment = (payment.extraPayment || 0) + amountValue;
+                renderPortfolioSchedule();
+                alert(`Added £${amountValue.toLocaleString()} extra payment to month ${paymentNum}`);
+            } else {
+                alert(`Month ${paymentNum} not found in schedule`);
+            }
         }
         
         function changePortfolioPage(delta) {
