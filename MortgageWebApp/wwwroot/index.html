@@ -51,9 +51,10 @@
             margin-bottom: 24px;
         }
         
-        .card.wide {
+        #portfolioTabContent .card.wide {
             max-width: 100%;
-            padding: 24px;
+            width: 100%;
+            box-sizing: border-box;
         }
         
         .section-title {
@@ -178,8 +179,6 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
-            overflow-x: auto;
-            display: block;
         }
         
         .schedule-table th {
@@ -425,10 +424,9 @@
             display: block;
         }
         
-        .tab-content.active.wide {
+        #portfolioTabContent.active {
             max-width: 100%;
-            margin: 0 -200px;
-            padding: 0 200px;
+            padding: 0 20px;
         }
     </style>
 </head>
@@ -511,7 +509,7 @@
         </div>
         </div>
         
-        <div id="portfolioTabContent" class="tab-content active wide">
+        <div id="portfolioTabContent" class="tab-content active">
             <div class="card">
                 <h2 class="section-title">Mortgage Portfolio</h2>
                 <p style="color: #666; margin-bottom: 20px;">Add multiple mortgage periods (initial + remortgages) to see the full picture.</p>
@@ -546,7 +544,7 @@
                 <div id="portfolioResultsContainer"></div>
             </div>
             
-            <div class="card wide" id="portfolioScheduleCard" style="display: none; overflow-x: auto;">
+            <div class="card wide" id="portfolioScheduleCard" style="display: none;">
                 <h2 class="section-title">Portfolio Amortization Schedule</h2>
                 <table class="schedule-table">
                     <thead>
