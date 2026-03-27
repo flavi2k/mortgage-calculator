@@ -234,7 +234,6 @@ namespace MortgageWebApp.Services
             var combinedSchedule = new List<PaymentSchedule>();
             decimal balance = 0;
             int globalPaymentNumber = 1;
-            bool isSinglePeriod = periods.Count == 1;
 
             for (int periodIndex = 0; periodIndex < periods.Count; periodIndex++)
             {
@@ -243,7 +242,7 @@ namespace MortgageWebApp.Services
                 int fixedPeriodMonths = period.FixedPeriodYears * 12;
                 int totalPeriodMonths = period.LoanTermYears * 12;
                 
-                int monthsToGenerate = isSinglePeriod ? totalPeriodMonths : fixedPeriodMonths;
+                int monthsToGenerate = periods.Count == 1 ? totalPeriodMonths : fixedPeriodMonths;
                 
                 var periodSchedule = GenerateAmortizationScheduleWithFixedPeriod(
                     period.LoanAmount,
