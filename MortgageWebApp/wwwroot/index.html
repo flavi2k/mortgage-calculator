@@ -1678,11 +1678,12 @@
                 return;
             }
             
-            const extraPaymentsMap = {};
+            // Preserve existing extra payments from current schedule
+            const existingExtraPayments = {};
             if (portfolioSchedule.length > 0) {
                 portfolioSchedule.forEach(p => {
                     if (p.extraPayment && p.extraPayment > 0) {
-                        extraPaymentsMap[p.paymentNumber] = p.extraPayment;
+                        existingExtraPayments[p.paymentNumber] = p.extraPayment;
                     }
                 });
             }
@@ -1690,11 +1691,38 @@
             const container = document.getElementById('portfolioResultsContainer');
             container.innerHTML = '<div class="message loading"><i class="fas fa-spinner fa-spin"></i> Calculating portfolio...</div>';
             
+            // Build periods with extra payments
+            const periodsWithExtra = mortgagePeriods.map((period, index) => {
+                const periodExtraPayments = [];
+                
+                // Find extra payments that belong to this period
+                let periodStartMonth = 0;
+                for (let i = 0; i < index; i++) {
+                    periodStartMonth += mortgagePeriods[i].loanTermYears * 12;
+                }
+                
+                Object.keys(existingExtraPayments).forEach(paymentNum => {
+                    const pm = parseInt(paymentNum);
+                    const amount = existingExtraPayments[pm];
+                    if (amount > 0 && pm > periodStartMonth) {
+                        periodExtraPayments.push({
+                            month: pm - periodStartMonth,
+                            amount: amount
+                        });
+                    }
+                });
+                
+                return {
+                    ...period,
+                    extraPayments: periodExtraPayments
+                };
+            });
+            
             try {
                 const response = await fetch('http://localhost:5001/api/mortgage/calculate-portfolio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(mortgagePeriods)
+                    body: JSON.stringify(periodsWithExtra)
                 });
                 
                 if (!response.ok) {
@@ -1704,10 +1732,10 @@
                 const result = await response.json();
                 portfolioSchedule = result.combinedSchedule;
                 
-                if (Object.keys(extraPaymentsMap).length > 0) {
+                if (Object.keys(existingExtraPayments).length > 0) {
                     portfolioSchedule.forEach(p => {
-                        if (extraPaymentsMap[p.paymentNumber]) {
-                            p.extraPayment = extraPaymentsMap[p.paymentNumber];
+                        if (existingExtraPayments[p.paymentNumber]) {
+                            p.extraPayment = existingExtraPayments[p.paymentNumber];
                         }
                     });
                 }
@@ -1723,10 +1751,10 @@
             }
         }
         
-        function renderPortfolioSummary(result) {
+        function getPortfolioSummaryHTML(result) {
             const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
             
-            const resultsHTML = `
+            return `
                 <div class="results-grid" style="margin-top: 20px;">
                     <div class="result-card">
                         <h3>Total Interest</h3>
@@ -1746,9 +1774,11 @@
                     </div>
                 </div>
             `;
-            
+        }
+        
+        function renderPortfolioSummary(result) {
             const container = document.getElementById('portfolioResultsContainer');
-            container.innerHTML += resultsHTML;
+            container.innerHTML = getPortfolioSummaryHTML(result);
         }
         
         let portfolioPage = 1;
@@ -1849,70 +1879,63 @@
             `;
         }
         
+        let extraPaymentsMap = {};
+
         function updateExtraPaymentInSchedule(paymentNumber, value) {
             const amount = parseFloat(String(value).replace(/,/g, '')) || 0;
-            const payment = portfolioSchedule.find(p => p.paymentNumber === paymentNumber);
-            if (payment) {
-                payment.extraPayment = amount;
-            }
+            extraPaymentsMap[paymentNumber] = amount;
             recalculatePortfolioTotals();
         }
 
-        function recalculatePortfolioTotals() {
-            let totalInterest = 0;
-            let totalPayment = 0;
-            let totalMonths = portfolioSchedule.length;
-            
-            portfolioSchedule.forEach(p => {
-                totalInterest += p.interestPayment;
-                totalPayment += p.totalPayment + (p.extraPayment || 0);
-            });
-            
-            // Find actual payoff month
-            for (let i = portfolioSchedule.length - 1; i >= 0; i--) {
-                if (portfolioSchedule[i].remainingBalance > 0) {
-                    totalMonths = i + 1;
-                    break;
-                }
-            }
-            
-            // Calculate what totals would be without extra payments
-            let totalInterestWithout = 0;
-            let totalPaymentWithout = 0;
-            portfolioSchedule.forEach(p => {
-                const basePayment = p.totalPayment;
-                const extra = p.extraPayment || 0;
-                totalInterestWithout += p.interestPayment;
-                totalPaymentWithout += basePayment;
-            });
-            
-            const totalInterestSaved = totalInterestWithout - totalInterest;
-            
-            const formatGBP = (num) => num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
-            
-            const resultsHTML = `
-                <div class="results-grid" style="margin-top: 20px;">
-                    <div class="result-card">
-                        <h3>Total Interest</h3>
-                        <p>${formatGBP(totalInterest)}</p>
-                    </div>
-                    <div class="result-card">
-                        <h3>Total Payment</h3>
-                        <p>${formatGBP(totalPayment)}</p>
-                    </div>
-                    <div class="result-card">
-                        <h3>Total Months</h3>
-                        <p>${totalMonths} (${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m)</p>
-                    </div>
-                    <div class="result-card">
-                        <h3>Interest Saved</h3>
-                        <p>${formatGBP(totalInterestSaved)}</p>
-                    </div>
-                </div>
-            `;
-            
+        async function recalculatePortfolioTotals() {
             const container = document.getElementById('portfolioResultsContainer');
-            container.innerHTML = '<div class="message success"><i class="fas fa-check-circle"></i> Updated with extra payments</div>' + resultsHTML;
+            container.innerHTML = '<div class="message loading"><i class="fas fa-spinner fa-spin"></i> Recalculating...</div>';
+            
+            // Build periods with extra payments
+            const periodsWithExtra = mortgagePeriods.map((period, index) => {
+                const periodExtraPayments = [];
+                
+                // Find extra payments that belong to this period
+                const fixedMonths = (period.fixedPeriodYears || 5) * 12;
+                const periodStartMonth = index === 0 ? 0 : mortgagePeriods.slice(0, index).reduce((sum, p) => sum + (p.loanTermYears * 12), 0);
+                
+                Object.keys(extraPaymentsMap).forEach(paymentNum => {
+                    const pm = parseInt(paymentNum);
+                    const amount = extraPaymentsMap[pm];
+                    if (amount > 0 && pm > periodStartMonth && pm <= periodStartMonth + (period.loanTermYears * 12)) {
+                        periodExtraPayments.push({
+                            month: pm - periodStartMonth,
+                            amount: amount
+                        });
+                    }
+                });
+                
+                return {
+                    ...period,
+                    extraPayments: periodExtraPayments
+                };
+            });
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/mortgage/calculate-portfolio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(periodsWithExtra)
+                });
+                
+                if (!response.ok) throw new Error('Calculation failed');
+                
+                const result = await response.json();
+                portfolioSchedule = result.combinedSchedule;
+                
+                renderPortfolioSchedule();
+                
+                container.innerHTML = '<div class="message success"><i class="fas fa-check-circle"></i> Updated with extra payments</div>' + getPortfolioSummaryHTML(result);
+                
+            } catch (error) {
+                console.error('Error recalculating:', error);
+                container.innerHTML = '<div class="message error"><i class="fas fa-exclamation-triangle"></i> Error recalculating</div>';
+            }
         }
         
         function changePortfolioPage(delta) {
