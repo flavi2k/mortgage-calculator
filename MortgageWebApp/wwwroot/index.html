@@ -1383,6 +1383,15 @@
                 return;
             }
             
+            const extraPaymentsMap = {};
+            if (portfolioSchedule.length > 0) {
+                portfolioSchedule.forEach(p => {
+                    if (p.extraPayment && p.extraPayment > 0) {
+                        extraPaymentsMap[p.paymentNumber] = p.extraPayment;
+                    }
+                });
+            }
+            
             const container = document.getElementById('portfolioResultsContainer');
             container.innerHTML = '<div class="message loading"><i class="fas fa-spinner fa-spin"></i> Calculating portfolio...</div>';
             
@@ -1399,6 +1408,14 @@
                 
                 const result = await response.json();
                 portfolioSchedule = result.combinedSchedule;
+                
+                if (Object.keys(extraPaymentsMap).length > 0) {
+                    portfolioSchedule.forEach(p => {
+                        if (extraPaymentsMap[p.paymentNumber]) {
+                            p.extraPayment = extraPaymentsMap[p.paymentNumber];
+                        }
+                    });
+                }
                 
                 renderPortfolioSummary(result);
                 renderPortfolioSchedule();
@@ -1479,13 +1496,16 @@
                 const year = paymentDate.getFullYear();
                 
                 const extraPaymentVal = payment.extraPayment || 0;
+                const basePayment = payment.totalPayment;
+                const totalWithExtra = basePayment + extraPaymentVal;
+                
                 row.innerHTML = `
                     <td>${payment.paymentNumber}</td>
                     <td>${monthName} ${year}</td>
                     <td>${paymentDate.toLocaleDateString()}</td>
-                    <td>${formatGBP(payment.totalPayment - extraPaymentVal)}</td>
+                    <td>${formatGBP(basePayment)}</td>
                     <td><input type="text" value="${extraPaymentVal.toLocaleString('en-GB')}" style="width: 80px; padding: 4px;" onblur="updateExtraPaymentInSchedule(${payment.paymentNumber}, this.value)" onfocus="unformatCurrency(this)"></td>
-                    <td>${formatGBP(payment.totalPayment)}</td>
+                    <td>${formatGBP(totalWithExtra)}</td>
                     <td>${formatGBP(payment.principalPayment)}</td>
                     <td>${formatGBP(payment.interestPayment)}</td>
                     <td>${formatGBP(payment.remainingBalance)}</td>
@@ -1540,9 +1560,7 @@
             const payment = portfolioSchedule.find(p => p.paymentNumber === paymentNumber);
             if (payment) {
                 payment.extraPayment = amount;
-                payment.totalPayment = (payment.totalPayment - payment.extraPayment) + amount;
             }
-            formatCurrency(document.querySelector(`#extraPayment-${paymentNumber}`));
         }
         
         function changePortfolioPage(delta) {
