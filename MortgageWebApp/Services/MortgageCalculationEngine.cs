@@ -239,10 +239,13 @@ namespace MortgageWebApp.Services
             {
                 var period = periods[periodIndex];
                 
-                var periodSchedule = GenerateAmortizationScheduleWithExtraPaymentsAndCap(
+                int fixedPeriodMonths = period.FixedPeriodYears * 12;
+                
+                var periodSchedule = GenerateAmortizationScheduleWithFixedPeriod(
                     period.LoanAmount,
                     period.AnnualInterestRate,
                     period.LoanTermYears,
+                    period.FixedPeriodYears,
                     period.StartDate,
                     period.EarlyRepaymentCapPercent,
                     period.ExtraPayments,
@@ -250,14 +253,10 @@ namespace MortgageWebApp.Services
                     globalPaymentNumber);
 
                 balance = 0;
-                foreach (var payment in periodSchedule)
+                if (periodSchedule.Count > 0)
                 {
-                    if (payment.RemainingBalance <= 0)
-                    {
-                        balance = 0;
-                        break;
-                    }
-                    balance = payment.RemainingBalance;
+                    var lastPayment = periodSchedule.Last();
+                    balance = lastPayment.RemainingBalance;
                 }
 
                 var periodResult = new MortgagePeriodResult
@@ -303,10 +302,11 @@ namespace MortgageWebApp.Services
             return result;
         }
 
-        private List<PaymentSchedule> GenerateAmortizationScheduleWithExtraPaymentsAndCap(
+        private List<PaymentSchedule> GenerateAmortizationScheduleWithFixedPeriod(
             decimal loanAmount,
             decimal annualInterestRate,
             int termYears,
+            int fixedPeriodYears,
             DateTime startDate,
             decimal earlyRepaymentCapPercent,
             List<ExtraPaymentEntry> extraPayments,
@@ -316,7 +316,9 @@ namespace MortgageWebApp.Services
             var schedule = new List<PaymentSchedule>();
             decimal balance = carryOverBalance > 0 ? carryOverBalance : loanAmount;
             decimal monthlyInterestRate = annualInterestRate / 100 / 12;
-            int numberOfPayments = termYears * 12;
+            int totalMonths = termYears * 12;
+            int fixedMonths = fixedPeriodYears * 12;
+            
             decimal monthlyPayment = CalculateMonthlyPaymentForPeriod(loanAmount, annualInterestRate, termYears);
             
             decimal maxAnnualRepayment = loanAmount * (earlyRepaymentCapPercent / 100);
@@ -324,18 +326,17 @@ namespace MortgageWebApp.Services
             
             DateTime paymentDate = startDate.AddMonths(1);
             int currentYear = paymentDate.Year;
-            decimal yearTotalPaid = 0;
 
             var extraPaymentMap = extraPayments.ToDictionary(e => e.MonthNumber, e => e.Amount);
 
-            for (int i = 1; i <= numberOfPayments; i++)
+            int monthsToGenerate = Math.Min(fixedMonths, totalMonths);
+            for (int i = 1; i <= monthsToGenerate; i++)
             {
                 if (balance <= 0) break;
 
                 int paymentYear = paymentDate.Year;
                 if (paymentYear != currentYear)
                 {
-                    yearTotalPaid = 0;
                     currentYear = paymentYear;
                 }
 
@@ -345,7 +346,6 @@ namespace MortgageWebApp.Services
                 decimal extraPayment = extraPaymentMap.ContainsKey(i) ? extraPaymentMap[i] : 0;
                 decimal totalPayment = monthlyPayment + extraPayment;
                 
-                yearTotalPaid += extraPayment;
                 decimal maxCapPayment = maxMonthlyCap + monthlyPayment;
                 bool isOverCap = extraPayment > maxMonthlyCap;
 
