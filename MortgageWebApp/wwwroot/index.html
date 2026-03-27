@@ -459,10 +459,7 @@
             
                 <div class="card wide" id="portfolioScheduleCard" style="display: none;">
                 <h2 class="section-title">Portfolio Amortization Schedule</h2>
-                <div style="margin-bottom: 15px; display: flex; gap: 20px; align-items: center;">
-                    <button class="btn" style="background: #28a745; padding: 8px 16px; font-size: 0.9rem;" onclick="addExtraPaymentToSchedule()">
-                        <i class="fas fa-plus"></i> Add Extra Payment to Schedule
-                    </button>
+                <div style="margin-bottom: 15px;">
                     <button class="btn" style="background: #4a90d9; padding: 8px 16px; font-size: 0.9rem;" onclick="calculatePortfolio()">
                         <i class="fas fa-calculator"></i> Recalculate
                     </button>
@@ -1546,26 +1543,6 @@
                 payment.totalPayment = (payment.totalPayment - payment.extraPayment) + amount;
             }
             formatCurrency(document.querySelector(`#extraPayment-${paymentNumber}`));
-        }
-        
-        function addExtraPaymentToSchedule() {
-            const monthNum = prompt('Enter month number for extra payment:');
-            if (!monthNum || isNaN(parseInt(monthNum))) return;
-            
-            const amount = prompt('Enter extra payment amount:');
-            if (!amount || isNaN(parseFloat(amount.replace(/,/g, '')))) return;
-            
-            const paymentNum = parseInt(monthNum);
-            const amountValue = parseFloat(amount.replace(/,/g, ''));
-            
-            const payment = portfolioSchedule.find(p => p.paymentNumber === paymentNum);
-            if (payment) {
-                payment.extraPayment = (payment.extraPayment || 0) + amountValue;
-                renderPortfolioSchedule();
-                alert(`Added £${amountValue.toLocaleString()} extra payment to month ${paymentNum}`);
-            } else {
-                alert(`Month ${paymentNum} not found in schedule`);
-            }
         }
         
         function changePortfolioPage(delta) {
