@@ -234,15 +234,29 @@ namespace MortgageWebApp.Services
             var combinedSchedule = new List<PaymentSchedule>();
             decimal balance = 0;
             int globalPaymentNumber = 1;
+            int originalTotalMonths = periods[0].LoanTermYears * 12;
 
             for (int periodIndex = 0; periodIndex < periods.Count; periodIndex++)
             {
                 var period = periods[periodIndex];
                 
                 int fixedPeriodMonths = period.FixedPeriodYears * 12;
-                int totalPeriodMonths = period.LoanTermYears * 12;
+                int periodTotalMonths = period.LoanTermYears * 12;
                 
-                int monthsToGenerate = periods.Count == 1 ? totalPeriodMonths : fixedPeriodMonths;
+                int monthsToGenerate;
+                if (periods.Count == 1)
+                {
+                    monthsToGenerate = periodTotalMonths;
+                }
+                else if (periodIndex == periods.Count - 1)
+                {
+                    int monthsAlreadyGenerated = periods.Take(periodIndex).Sum(p => p.FixedPeriodYears * 12);
+                    monthsToGenerate = originalTotalMonths - monthsAlreadyGenerated;
+                }
+                else
+                {
+                    monthsToGenerate = fixedPeriodMonths;
+                }
                 
                 var periodSchedule = GenerateAmortizationScheduleWithFixedPeriod(
                     period.LoanAmount,
