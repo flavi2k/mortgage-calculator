@@ -173,6 +173,8 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
+            overflow-x: auto;
+            display: block;
         }
         
         .schedule-table th {
@@ -510,8 +512,8 @@
                 </button>
                 
                 <div style="margin-top: 16px;">
-                    <label for="portfolioPropertyValue" style="display: block; margin-bottom: 6px; font-weight: 500;">Property Value (£)</label>
-                    <input type="text" id="portfolioPropertyValue" placeholder="Enter property value in £" value="300,000" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 200px;" onblur="formatCurrency(this); calculatePortfolio()" onfocus="unformatCurrency(this)">
+                            <label for="portfolioPropertyValue" style="display: block; margin-bottom: 6px; font-weight: 500;">Property Value (£)</label>
+                    <input type="text" id="portfolioPropertyValue" placeholder="Enter property value in £" value="300,000" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 200px; font-size: 1rem;" onblur="formatCurrency(this); calculatePortfolio()" onfocus="unformatCurrency(this)">
                 </div>
                 
                 <button id="calculatePortfolioBtn" class="btn" style="background: #28a745; margin-top: 20px;" onclick="calculatePortfolio()">
@@ -533,7 +535,7 @@
                 <div id="portfolioResultsContainer"></div>
             </div>
             
-            <div class="card" id="portfolioScheduleCard" style="display: none;">
+            <div class="card" id="portfolioScheduleCard" style="display: none; overflow-x: auto;">
                 <h2 class="section-title">Portfolio Amortization Schedule</h2>
                 <table class="schedule-table">
                     <thead>
@@ -1426,7 +1428,7 @@
                         </div>
                         <div class="form-group">
                             <label>Fixed Period (years)</label>
-                            <select onchange="updatePeriodField(${index}, 'fixedPeriodYears', this.value)">
+                            <select style="padding: 10px; font-size: 1rem;" onchange="updatePeriodField(${index}, 'fixedPeriodYears', this.value)">
                                 <option value="2" ${period.fixedPeriodYears === 2 ? 'selected' : ''}>2 years</option>
                                 <option value="5" ${period.fixedPeriodYears === 5 ? 'selected' : ''}>5 years</option>
                                 <option value="10" ${period.fixedPeriodYears === 10 ? 'selected' : ''}>10 years</option>
