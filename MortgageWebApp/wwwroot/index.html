@@ -394,40 +394,6 @@
             background: #138496;
         }
         
-        .tab-buttons {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-        }
-        
-        .tab-btn {
-            background: white;
-            border: 2px solid #e0e0e0;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        
-        .tab-btn.active {
-            background: #4a90d9;
-            color: white;
-            border-color: #4a90d9;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        #portfolioTabContent.active {
-            max-width: 100%;
-            padding: 0 20px;
-        }
         #portfolioTabContent .card {
             max-width: 100%;
             width: 100%;
@@ -454,78 +420,6 @@
         <div class="header">
             <h1><i class="fas fa-calculator"></i> Mortgage Calculator</h1>
             <p>Calculate your monthly payments and view amortization schedule</p>
-        </div>
-        
-        <div class="tab-buttons">
-            <button class="tab-btn" onclick="switchTab('single')" id="tabSingle">
-                <i class="fas fa-home"></i> Single Mortgage
-            </button>
-            <button class="tab-btn active" onclick="switchTab('portfolio')" id="tabPortfolio">
-                <i class="fas fa-building"></i> Portfolio (with Remortgage)
-            </button>
-        </div>
-        
-        <div id="singleTabContent" class="tab-content">
-            <div class="card">
-                <h2 class="section-title">Loan Details</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="loanAmount">Loan Amount (£)</label>
-                    <input type="text" id="loanAmount" placeholder="Enter loan amount in £" value="215,000" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
-                </div>
-                
-                <div class="form-group">
-                    <label for="interestRate">Annual Interest Rate (%)</label>
-                    <input type="number" id="interestRate" placeholder="Enter interest rate" step="0.01" value="5.05">
-                </div>
-                
-                <div class="form-group">
-                    <label for="loanTerm">Loan Term (years)</label>
-                    <input type="number" id="loanTerm" placeholder="Enter loan term" value="23">
-                </div>
-                
-                <div class="form-group">
-                    <label for="extraPayment">Monthly Extra Payment (£)</label>
-                    <input type="text" id="extraPayment" placeholder="Enter extra payment amount in £" value="0" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
-                </div>
-                
-                <div class="form-group">
-                    <label for="oneTimePayment">One-Time Extra Payment (£)</label>
-                    <input type="text" id="oneTimePayment" placeholder="Enter one-time payment in £" value="0" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
-                </div>
-                
-                <div class="form-group">
-                    <label for="extraPaymentMonth">Apply One-Time Payment In Month</label>
-                    <input type="number" id="extraPaymentMonth" placeholder="Month number" value="12" min="1">
-                </div>
-                
-                <div class="form-group">
-                    <label for="propertyValue">Property Value (£)</label>
-                    <input type="text" id="propertyValue" placeholder="Enter property value in £" value="300,000" onblur="formatCurrency(this)" onfocus="unformatCurrency(this)">
-                </div>
-            </div>
-            
-            <button id="calculateBtn" class="btn">
-                <i class="fas fa-calculator"></i> Calculate Mortgage
-            </button>
-            
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button type="button" class="btn" style="background: #28a745;" onclick="saveCalculation()">
-                    <i class="fas fa-save"></i> Save
-                </button>
-                <button type="button" class="btn" style="background: #6c757d;" onclick="loadCalculation()">
-                    <i class="fas fa-folder-open"></i> Load
-                </button>
-                <button type="button" class="btn" style="background: #dc3545;" onclick="clearSaved()">
-                    <i class="fas fa-trash"></i> Clear Saved
-                </button>
-                <button type="button" class="btn" style="background: #17a2b8;" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print / PDF
-                </button>
-            </div>
-            
-            <div id="resultsContainer"></div>
-        </div>
         </div>
         
         <div id="portfolioTabContent" class="tab-content active">
@@ -1298,19 +1192,6 @@
             if (confirm('Clear saved calculation?')) {
                 localStorage.removeItem('mortgageCalculation');
                 alert('Saved calculation cleared.');
-            }
-        }
-        
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            if (tab === 'single') {
-                document.getElementById('tabSingle').classList.add('active');
-                document.getElementById('singleTabContent').classList.add('active');
-            } else {
-                document.getElementById('tabPortfolio').classList.add('active');
-                document.getElementById('portfolioTabContent').classList.add('active');
             }
         }
         
