@@ -84,10 +84,17 @@
             margin-bottom: 24px;
             border: 1px solid var(--border);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
         }
 
         .card:hover {
             box-shadow: var(--shadow-lg);
+        }
+
+        .card table {
+            overflow-x: auto;
+            display: block;
+            max-width: 100%;
         }
         
         #portfolioTabContent .card.wide {
@@ -357,6 +364,16 @@
             font-size: 0.9rem;
             border-radius: var(--radius-md);
             overflow: hidden;
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .schedule-table thead,
+        .schedule-table tbody {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
         }
         
         .schedule-table th {
@@ -732,27 +749,28 @@
                         <i class="fas fa-calculator"></i> Recalculate
                     </button>
                 </div>
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Month</th>
-                            <th>Date</th>
-                            <th>Payment</th>
-                            <th>Extra Payment</th>
-                            <th>Total Payment</th>
-                            <th>Principal</th>
-                            <th>Interest</th>
-                            <th>Balance</th>
-                            <th>LTV %</th>
-                            <th>Year</th>
-                            <th>Max 10%</th>
-                            <th>Over Cap</th>
-                        </tr>
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Month</th>
+                                <th>Date</th>
+                                <th>Payment</th>
+                                <th>Extra Payment</th>
+                                <th>Total Payment</th>
+                                <th>Principal</th>
+                                <th>Interest</th>
+                                <th>Balance</th>
+                                <th>LTV %</th>
+                                <th>Year</th>
+                                <th>Max 10%</th>
+                                <th>Over Cap</th>
                     </thead>
-                    <tbody id="portfolioScheduleBody">
-                    </tbody>
-                </table>
+                        <tbody id="portfolioScheduleBody">
+                        </tbody>
+                    </table>
+                </div>
                 <div id="portfolioPagination" class="pagination"></div>
             </div>
         </div>
@@ -796,41 +814,46 @@
         
         <div class="card">
             <h2 class="section-title"><i class="fas fa-table"></i> Amortization Schedule</h2>
-            <table class="schedule-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Date</th>
-                        <th>Payment</th>
-                        <th>Principal</th>
-                        <th>Interest</th>
-                        <th>Balance</th>
-                    </tr>
-                </thead>
-                <tbody id="scheduleTableBody">
-                    <tr>
-                        <td colspan="6" style="text-align: center; color: #888;">Enter loan details and click calculate</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Payment</th>
+                            <th>Principal</th>
+                            <th>Interest</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #888;">Enter loan details and click calculate</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <div id="paginationContainer" class="pagination"></div>
         </div>
         
         <div class="card" id="savingsCard" style="display: none;">
             <h2 class="section-title"><i class="fas fa-comparison"></i> Payment Comparison & Savings</h2>
-            <table class="schedule-table">
-                <thead>
-                    <tr>
-                        <th>Scenario</th>
-                        <th>Monthly Payment</th>
-                        <th>Total Interest</th>
-                        <th>Total Payment</th>
-                        <th>Time to Pay Off</th>
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Scenario</th>
+                            <th>Monthly Payment</th>
+                            <th>Total Interest</th>
+                            <th>Total Payment</th>
+                            <th>Time to Pay Off</th>
+                        </tr>
                     </tr>
-                </thead>
-                <tbody id="savingsTableBody">
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="savingsTableBody">
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <div class="card" id="ltvCard" style="display: none;">
