@@ -536,6 +536,8 @@
                             <th>#</th>
                             <th>Date</th>
                             <th>Payment</th>
+                            <th>Extra Payment</th>
+                            <th>Total Payment</th>
                             <th>Principal</th>
                             <th>Interest</th>
                             <th>Balance</th>
@@ -1643,7 +1645,7 @@
                 if (paymentPeriodIndex > lastPeriodIndex && lastPeriodIndex !== -1) {
                     const separatorRow = document.createElement('tr');
                     separatorRow.className = 'period-separator';
-                    separatorRow.innerHTML = `<td colspan="9" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
+                    separatorRow.innerHTML = `<td colspan="11" style="background: #e8f5e9; text-align: center; font-weight: 600; padding: 8px; border-top: 2px solid #4a90d9;">🔄 Remortgage Period ${paymentPeriodIndex} Starts</td>`;
                     tbody.appendChild(separatorRow);
                 }
                 
@@ -1654,6 +1656,8 @@
                 row.innerHTML = `
                     <td>${payment.paymentNumber}</td>
                     <td>${new Date(payment.paymentDate).toLocaleDateString()}</td>
+                    <td>${formatGBP(payment.totalPayment - (payment.extraPayment || 0))}</td>
+                    <td>${formatGBP(payment.extraPayment || 0)}</td>
                     <td>${formatGBP(payment.totalPayment)}</td>
                     <td>${formatGBP(payment.principalPayment)}</td>
                     <td>${formatGBP(payment.interestPayment)}</td>
