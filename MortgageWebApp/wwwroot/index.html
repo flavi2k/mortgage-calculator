@@ -935,7 +935,7 @@
             resultsContainer.innerHTML = '<div class="message loading"><i class="fas fa-spinner fa-spin"></i> Calculating...</div>';
             
             try {
-                const baseResponse = await fetch('http://localhost:5001/api/mortgage/calculate-monthly-payment', {
+                const baseResponse = await fetch('http://localhost:5000/api/mortgage/calculate-monthly-payment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -947,7 +947,7 @@
                 
                 const baseData = await baseResponse.json();
                 
-                const extraResponse = await fetch('http://localhost:5001/api/mortgage/extra-payment-scenario', {
+                const extraResponse = await fetch('http://localhost:5000/api/mortgage/extra-payment-scenario', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -976,7 +976,7 @@
                 
                 let oneTimeData = null;
                 if (oneTimePayment > 0) {
-                    const oneTimeResponse = await fetch('http://localhost:5001/api/mortgage/amortization-schedule-one-time', {
+                    const oneTimeResponse = await fetch('http://localhost:5000/api/mortgage/amortization-schedule-one-time', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -989,7 +989,7 @@
                         })
                     });
                     const oneTimeSchedule = await oneTimeResponse.json();
-                    const originalSchedule = await (await fetch('http://localhost:5001/api/mortgage/amortization-schedule', {
+                    const originalSchedule = await (await fetch('http://localhost:5000/api/mortgage/amortization-schedule', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1038,7 +1038,7 @@
         
         async function updateSchedule(loanAmount, interestRate, loanTerm, extraPayment, propertyValue) {
             try {
-                const response = await fetch('http://localhost:5001/api/mortgage/amortization-schedule-extra', {
+                const response = await fetch('http://localhost:5000/api/mortgage/amortization-schedule-extra', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1512,7 +1512,7 @@
                 loanTerm = Math.max(5, prevPeriod.loanTermYears - fixedYears);
                 
                 try {
-                    const response = await fetch('http://localhost:5001/api/mortgage/projected-balance', {
+                    const response = await fetch('http://localhost:5000/api/mortgage/projected-balance', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1719,7 +1719,7 @@
             });
             
             try {
-                const response = await fetch('http://localhost:5001/api/mortgage/calculate-portfolio', {
+                const response = await fetch('http://localhost:5000/api/mortgage/calculate-portfolio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(periodsWithExtra)
@@ -1917,7 +1917,7 @@
             });
             
             try {
-                const response = await fetch('http://localhost:5001/api/mortgage/calculate-portfolio', {
+                const response = await fetch('http://localhost:5000/api/mortgage/calculate-portfolio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(periodsWithExtra)

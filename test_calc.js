@@ -8,22 +8,36 @@ const { chromium } = require('playwright');
   await page.goto('http://localhost:5001', { waitUntil: 'networkidle', timeout: 30000 });
   console.log('Page loaded!');
   
-  const loanAmount = await page.locator('#loanAmount');
-  await loanAmount.click();
-  await loanAmount.selectText();
-  await loanAmount.type('215000');
+  // Fill in some values (clear first)
+  const loanInput = await page.locator('#loanAmount');
+  await loanInput.click();
+  await loanInput.selectText();
+  await loanInput.type('250000');
+  await page.fill('#interestRate', '4.5');
   
-  await page.click('#calculateBtn');
-  await page.waitForTimeout(3000);
+  // Test save
+  await page.click('button:has-text("Save")');
+  await page.waitForTimeout(500);
   
-  const ltvCard = await page.locator('#ltvCard').isVisible();
-  const financialAdvisor = await page.locator('#financialAdvisor').count();
+  // Check localStorage
+  const saved = await page.evaluate(() => localStorage.getItem('mortgageCalculation'));
+  console.log('Saved data:', saved ? 'Yes' : 'No');
   
-  console.log('LTV Card visible:', ltvCard);
-  console.log('Financial Advisor exists:', financialAdvisor > 0);
+  // Clear and fill with different value
+  const loanInput2 = await page.locator('#loanAmount');
+  await loanInput2.click();
+  await loanInput2.selectText();
+  await loanInput2.type('100000');
   
-  if (ltvCard && financialAdvisor > 0) {
-    console.log('✓ Financial Advisor working!');
+  // Test load
+  await page.click('button:has-text("Load")');
+  await page.waitForTimeout(1000);
+  
+  const loanValue = await page.locator('#loanAmount').inputValue();
+  console.log('Loaded loan amount:', loanValue);
+  
+  if (loanValue === '250,000') {
+    console.log('✓ Save/Load working!');
   }
   
   await browser.close();
